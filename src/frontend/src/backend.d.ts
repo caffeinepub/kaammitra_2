@@ -60,6 +60,7 @@ export interface backendInterface {
     resetAdminPasswordDirect(newPassword: string): Promise<void>;
     checkAdminPassword(password: string): Promise<boolean>;
     createJob(category: string, location: string, description: string, payOffered: string, postedBy: string): Promise<Job>;
+    createJobApproved(category: string, location: string, description: string, payOffered: string, postedBy: string): Promise<Job>;
     createWorker(name: string, experience: string, location: string, expectedSalary: string, category: string): Promise<Worker>;
     deleteCategory(id: bigint): Promise<boolean>;
     deleteJob(id: bigint): Promise<boolean>;

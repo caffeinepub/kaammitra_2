@@ -64,6 +64,7 @@ export interface _SERVICE {
   'checkAdminPassword' : ActorMethod<[string], boolean>,
   'resetAdminToDefault' : ActorMethod<[], undefined>,
   'createJob' : ActorMethod<[string, string, string, string, string], Job>,
+  'createJobApproved' : ActorMethod<[string, string, string, string, string], Job>,
   'createWorker' : ActorMethod<
     [string, string, string, string, string],
     Worker

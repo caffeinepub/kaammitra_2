@@ -162,15 +162,13 @@ actor {
   };
 
   // OTP Auth functions
-  // Returns the generated OTP as text so frontend can display it (demo mode - no real SMS)
   public shared ({ caller }) func generateAdminOtp(phone : Text) : async Text {
     if (Text.equal(phone, adminPhone)) {
-      // Generate a simple 6-digit OTP based on time
       let now = Int.abs(Time.now());
       let otpNum = (now / 1_000_000) % 1_000_000;
       let otp = if (otpNum < 100000) { "1" # (otpNum + 100000).toText() } else { otpNum.toText() };
       adminOtp := otp;
-      adminOtpExpiry := Time.now() + 600_000_000_000; // 10 minutes
+      adminOtpExpiry := Time.now() + 600_000_000_000;
       otp;
     } else {
       "";
@@ -181,7 +179,6 @@ actor {
     if (not Text.equal(phone, adminPhone)) { return false };
     if (not Text.equal(otp, adminOtp)) { return false };
     if (Time.now() > adminOtpExpiry) { return false };
-    // Clear OTP after use
     adminOtp := "";
     true;
   };
@@ -206,7 +203,7 @@ actor {
       expectedSalary;
       category;
       createdAt = Int.abs(Time.now());
-      approved = false;
+      approved = true;  // Auto-approve workers so they appear in Find Worker list
       blocked = false;
     };
     workers.add(workerId, newWorker);
@@ -301,6 +298,24 @@ actor {
       postedBy;
       createdAt = Int.abs(Time.now());
       approved = false;
+      deleted = false;
+    };
+    jobs.add(jobId, newJob);
+    jobId += 1;
+    newJob;
+  };
+
+  // Create job with payment - auto-approved so it appears in Find Work immediately
+  public shared ({ caller }) func createJobApproved(category : Text, location : Text, description : Text, payOffered : Text, postedBy : Text) : async Job {
+    let newJob : Job = {
+      id = jobId;
+      category;
+      location;
+      description;
+      payOffered;
+      postedBy;
+      createdAt = Int.abs(Time.now());
+      approved = true;  // Auto-approved after payment
       deleted = false;
     };
     jobs.add(jobId, newJob);
@@ -468,7 +483,7 @@ actor {
     notificationId += 1;
   };
 
-  // Admin Auth functions (legacy - kept for internal use)
+  // Admin Auth functions
   public shared ({ caller }) func checkAdminCredentials(username : Text, password : Text) : async Bool {
     username == adminUsername and password == adminPassword;
   };
@@ -492,7 +507,6 @@ actor {
     adminPhone := "9876543210";
   };
 
-  // Reset password without requiring old password (used after OTP verification)
   public shared ({ caller }) func resetAdminPasswordDirect(newPassword : Text) : async () {
     adminPassword := newPassword;
   };

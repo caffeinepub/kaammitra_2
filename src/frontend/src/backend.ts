@@ -141,6 +141,7 @@ export interface backendInterface {
     changeAdminCredentials(oldPassword: string, newUsername: string, newPassword: string): Promise<boolean>;
     resetAdminToDefault(): Promise<void>;
     createJob(category: string, location: string, description: string, payOffered: string, postedBy: string): Promise<Job>;
+    createJobApproved(category: string, location: string, description: string, payOffered: string, postedBy: string): Promise<Job>;
     createWorker(name: string, experience: string, location: string, expectedSalary: string, category: string): Promise<Worker>;
     deleteCategory(id: bigint): Promise<boolean>;
     deleteJob(id: bigint): Promise<boolean>;
@@ -332,6 +333,21 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.createJob(arg0, arg1, arg2, arg3, arg4);
+            return result;
+        }
+    }
+
+    async createJobApproved(arg0: string, arg1: string, arg2: string, arg3: string, arg4: string): Promise<Job> {
+        if (this.processError) {
+            try {
+                const result = await (this.actor as any).createJobApproved(arg0, arg1, arg2, arg3, arg4);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await (this.actor as any).createJobApproved(arg0, arg1, arg2, arg3, arg4);
             return result;
         }
     }

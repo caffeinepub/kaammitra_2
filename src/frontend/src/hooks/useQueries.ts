@@ -70,6 +70,32 @@ export function useCreateJob() {
   });
 }
 
+export function useCreateJobApproved() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      category: string;
+      location: string;
+      description: string;
+      payOffered: string;
+      postedBy: string;
+    }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.createJobApproved(
+        data.category,
+        data.location,
+        data.description,
+        data.payOffered,
+        data.postedBy,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
+}
+
 export function useCreateWorker() {
   const { actor } = useActor();
   const qc = useQueryClient();
