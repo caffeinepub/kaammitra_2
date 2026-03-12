@@ -1,0 +1,100 @@
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("/assets/fonts/BricolageGrotesque-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Outfit";
+  src: url("/assets/fonts/Outfit-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0.97 0.012 75;
+    --foreground: 0.18 0.04 40;
+    --card: 1 0 0;
+    --card-foreground: 0.18 0.04 40;
+    --popover: 1 0 0;
+    --popover-foreground: 0.18 0.04 40;
+    --primary: 0.59 0.22 35;
+    --primary-foreground: 0.99 0 0;
+    --secondary: 0.82 0.16 78;
+    --secondary-foreground: 0.18 0.04 40;
+    --muted: 0.93 0.018 75;
+    --muted-foreground: 0.52 0.045 55;
+    --accent: 0.88 0.16 88;
+    --accent-foreground: 0.18 0.04 40;
+    --destructive: 0.55 0.22 25;
+    --destructive-foreground: 0.99 0 0;
+    --border: 0.89 0.025 75;
+    --input: 0.89 0.025 75;
+    --ring: 0.59 0.22 35;
+    --radius: 0.75rem;
+    --chart-1: 0.59 0.22 35;
+    --chart-2: 0.82 0.16 78;
+    --chart-3: 0.75 0.14 180;
+    --chart-4: 0.65 0.18 290;
+    --chart-5: 0.7 0.16 130;
+    --sidebar: 0.97 0.012 75;
+    --sidebar-foreground: 0.18 0.04 40;
+    --sidebar-primary: 0.59 0.22 35;
+    --sidebar-primary-foreground: 0.99 0 0;
+    --sidebar-accent: 0.93 0.018 75;
+    --sidebar-accent-foreground: 0.18 0.04 40;
+    --sidebar-border: 0.89 0.025 75;
+    --sidebar-ring: 0.59 0.22 35;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-body;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  .touch-btn {
+    @apply min-h-[52px] text-base font-semibold rounded-xl transition-all duration-200 active:scale-95;
+  }
+
+  .card-elevated {
+    @apply bg-card rounded-2xl shadow-card border border-border;
+  }
+
+  .category-badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-secondary text-secondary-foreground;
+  }
+
+  .page-container {
+    @apply max-w-[520px] mx-auto px-4 pb-24;
+  }
+
+  .section-title {
+    @apply text-xl font-bold text-foreground mb-4;
+  }
+}
