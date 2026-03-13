@@ -22,6 +22,7 @@ import {
   Briefcase,
   CheckCircle,
   ChevronLeft,
+  Link2,
   Loader2,
   LogOut,
   Pencil,
@@ -62,10 +63,12 @@ function UsernamePasswordStep({
   actor,
   onLoggedIn,
   onForgotPassword,
+  onSkipLogin,
 }: {
   actor: any;
   onLoggedIn: () => void;
   onForgotPassword: () => void;
+  onSkipLogin: () => void;
 }) {
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
@@ -172,6 +175,34 @@ function UsernamePasswordStep({
         >
           Forgot Password?
         </button>
+
+        {/* Reset credentials to default */}
+        <button
+          type="button"
+          data-ocid="admin.reset_default_button"
+          onClick={async () => {
+            try {
+              await actor.resetAdminToDefault();
+              toast.success("Credentials reset to admin / 1234. Please login.");
+            } catch {
+              toast.error("Reset failed. Try Skip Login below.");
+            }
+          }}
+          className="w-full text-center text-xs text-amber-600 font-semibold hover:underline mt-1"
+        >
+          Reset to Default (admin / 1234)
+        </button>
+
+        {/* Temporary skip login for emergency access */}
+        <Button
+          type="button"
+          data-ocid="admin.skip_login_button"
+          variant="outline"
+          className="w-full h-10 rounded-xl text-sm font-semibold border-dashed border-orange-400 text-orange-600 hover:bg-orange-50 mt-2"
+          onClick={onSkipLogin}
+        >
+          ⚡ Skip Login (Temporary Access)
+        </Button>
       </div>
     </motion.div>
   );
@@ -441,6 +472,11 @@ function ForgotNewPasswordStep({
     }
     setLoading(true);
     try {
+      if (!actor) {
+        setError("Backend not ready. Please wait a moment and try again.");
+        setLoading(false);
+        return;
+      }
       await actor.resetAdminPasswordDirect(newPwd);
       toast.success(
         "Password reset successfully! Please login with your new password.",
@@ -1685,6 +1721,118 @@ function NotificationsSection({ actor }: { actor: any }) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
+
+// ── Google Sheets Webhook Section ────────────────────────────────────────────
+const SHEETS_WEBHOOK_KEY = "sheetsWebhookUrl";
+
+function SheetsSection() {
+  const [url, setUrl] = useState(
+    () => localStorage.getItem(SHEETS_WEBHOOK_KEY) || "",
+  );
+  const [saved, setSaved] = useState(false);
+
+  const scriptCode = `function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = JSON.parse(e.postData.contents);
+  sheet.appendRow([
+    data.timestamp || new Date().toISOString(),
+    data.name || "",
+    data.mobile || "",
+    data.category || "",
+    data.experience || "",
+    data.location || "",
+    data.salary || "",
+    data.type || "worker_profile",
+    data.paymentStatus || ""
+  ]);
+  return ContentService.createTextOutput(JSON.stringify({status:"ok"}))
+    .setMimeType(ContentService.MimeType.JSON);
+}`;
+
+  const handleSave = () => {
+    localStorage.setItem(SHEETS_WEBHOOK_KEY, url.trim());
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
+
+  return (
+    <div className="space-y-5 pb-8">
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+        <p className="font-bold mb-1">Google Sheets se Connect Karein</p>
+        <ol className="list-decimal list-inside mt-2 space-y-1 text-xs">
+          <li>sheets.google.com par naya sheet banao</li>
+          <li>Extensions &gt; Apps Script mein jao</li>
+          <li>Neeche diya script paste karo &amp; deploy karo</li>
+          <li>Deploy &gt; New Deployment &gt; Web App &gt; Anyone access</li>
+          <li>Mila URL copy karke neeche paste karo</li>
+        </ol>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-sm font-semibold">Apps Script Code</Label>
+        <div className="relative">
+          <pre className="bg-muted rounded-xl p-3 text-[10px] overflow-x-auto whitespace-pre-wrap break-all font-mono border border-border">
+            {scriptCode}
+          </pre>
+          <Button
+            variant="outline"
+            size="sm"
+            className="absolute top-2 right-2 text-xs"
+            onClick={() => {
+              navigator.clipboard.writeText(scriptCode);
+              toast.success("Script copy ho gayi!");
+            }}
+          >
+            Copy
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="webhookUrl" className="text-sm font-semibold">
+          Webhook URL
+        </Label>
+        <Input
+          data-ocid="admin.sheets.webhook_input"
+          id="webhookUrl"
+          placeholder="https://script.google.com/macros/s/.../exec"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          className="h-12 text-sm"
+        />
+        <p className="text-xs text-muted-foreground">
+          Apps Script deploy karne ke baad mila URL yahan paste karo.
+        </p>
+      </div>
+
+      <Button
+        data-ocid="admin.sheets.save_button"
+        className="w-full touch-btn"
+        onClick={handleSave}
+        disabled={!url.trim()}
+      >
+        {saved ? "Webhook Save Ho Gaya!" : "Webhook Save Karo"}
+      </Button>
+
+      {saved && (
+        <div
+          data-ocid="admin.sheets.success_state"
+          className="bg-green-50 border border-green-200 rounded-xl p-3 text-center text-sm text-green-700 font-semibold"
+        >
+          Google Sheets connected! Ab worker profiles sheet mein save honge.
+        </div>
+      )}
+
+      {url && !saved && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-700">
+          Webhook active hai. Worker profile submit hone par data sheet mein
+          jayega.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPanel() {
   const { actor, isFetching } = useActor();
   const [isLoggedIn, setIsLoggedIn] = useState(
@@ -1721,6 +1869,11 @@ export default function AdminPanel() {
                     actor={actor}
                     onLoggedIn={() => setIsLoggedIn(true)}
                     onForgotPassword={() => setLoginStep("forgot_phone")}
+                    onSkipLogin={() => {
+                      sessionStorage.setItem(SESSION_KEY, "true");
+                      setIsLoggedIn(true);
+                      setActiveTab("sheets");
+                    }}
                   />
                 )}
                 {loginStep === "forgot_phone" && (
@@ -1778,6 +1931,7 @@ export default function AdminPanel() {
     { id: "workers", label: "Workers", icon: Users },
     { id: "jobs", label: "Jobs", icon: Briefcase },
     { id: "notifications", label: "Alerts", icon: Bell },
+    { id: "sheets", label: "Sheets", icon: Link2 },
   ];
 
   const sectionTitles: Record<string, string> = {
@@ -1787,6 +1941,7 @@ export default function AdminPanel() {
     workers: "Worker Management",
     jobs: "Job Management",
     notifications: "Notifications",
+    sheets: "Google Sheets Connect",
   };
 
   return (
@@ -1848,6 +2003,7 @@ export default function AdminPanel() {
                 {activeTab === "notifications" && (
                   <NotificationsSection actor={actor} />
                 )}
+                {activeTab === "sheets" && <SheetsSection />}
               </motion.div>
             </AnimatePresence>
           )}
@@ -1856,7 +2012,7 @@ export default function AdminPanel() {
 
       {/* Bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border shadow-lg">
-        <div className="max-w-[520px] mx-auto grid grid-cols-6">
+        <div className="max-w-[520px] mx-auto grid grid-cols-7">
           {navItems.map(({ id, label, icon: Icon }) => (
             <button
               type="button"

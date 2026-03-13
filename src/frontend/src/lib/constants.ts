@@ -1,34 +1,223 @@
-export const CATEGORIES = [
-  "JCB Operator",
-  "Mason",
-  "Electrician",
-  "Plumber",
-  "Painter",
-  "Labour",
-  "Driver",
-  "Carpenter",
+export const MAIN_CATEGORIES = [
+  {
+    id: "construction",
+    name: "Construction Workers",
+    emoji: "🏗️",
+    color: "from-orange-500 to-amber-500",
+    bgColor: "bg-orange-50",
+    borderColor: "border-orange-200",
+    textColor: "text-orange-800",
+    subcategories: [
+      "JCB Operator",
+      "Excavator Operator",
+      "Bulldozer Operator",
+      "Crane Operator",
+      "Mason",
+      "Helper / Labour",
+      "Electrician",
+      "Plumber",
+      "Carpenter",
+      "Welder",
+      "Painter",
+      "Mechanic",
+    ],
+  },
+  {
+    id: "office",
+    name: "Office Staff",
+    emoji: "🏢",
+    color: "from-blue-500 to-indigo-500",
+    bgColor: "bg-blue-50",
+    borderColor: "border-blue-200",
+    textColor: "text-blue-800",
+    subcategories: [
+      "HR Manager",
+      "Accountant",
+      "Account Manager",
+      "Office Assistant",
+      "Supervisor",
+      "Foreman",
+      "Site Engineer",
+      "Project Manager",
+    ],
+  },
+  {
+    id: "mechanical",
+    name: "Mechanical & Technical",
+    emoji: "⚙️",
+    color: "from-gray-600 to-slate-600",
+    bgColor: "bg-gray-50",
+    borderColor: "border-gray-200",
+    textColor: "text-gray-800",
+    subcategories: [
+      "Machine Mechanic",
+      "Workshop Mechanic",
+      "Machine Incharge",
+      "Maintenance Engineer",
+      "Equipment Supervisor",
+    ],
+  },
+  {
+    id: "driver",
+    name: "Driver Category",
+    emoji: "🚛",
+    color: "from-green-500 to-emerald-600",
+    bgColor: "bg-green-50",
+    borderColor: "border-green-200",
+    textColor: "text-green-800",
+    subcategories: [
+      "Car Driver",
+      "Bolero Driver",
+      "Pickup Driver",
+      "Truck Driver",
+      "Tipper Driver",
+      "Trailer Driver",
+      "Dumper Driver",
+      "Tractor Driver",
+      "Bus Driver",
+    ],
+  },
 ] as const;
 
-export type Category = (typeof CATEGORIES)[number];
-
-export const CATEGORY_COLORS: Record<string, string> = {
-  "JCB Operator": "bg-orange-100 text-orange-800",
-  Mason: "bg-stone-100 text-stone-800",
-  Electrician: "bg-yellow-100 text-yellow-800",
-  Plumber: "bg-blue-100 text-blue-800",
-  Painter: "bg-purple-100 text-purple-800",
-  Labour: "bg-red-100 text-red-800",
-  Driver: "bg-green-100 text-green-800",
-  Carpenter: "bg-amber-100 text-amber-800",
-};
+// Flat list for dropdowns - JCB Operator always first
+export const CATEGORIES: string[] = [
+  "JCB Operator",
+  ...MAIN_CATEGORIES.flatMap((g) =>
+    g.subcategories.filter((s) => s !== "JCB Operator"),
+  ),
+];
 
 export const CATEGORY_EMOJIS: Record<string, string> = {
   "JCB Operator": "🚜",
+  "Excavator Operator": "🚧",
+  "Bulldozer Operator": "🏗️",
+  "Crane Operator": "🏗️",
   Mason: "🧱",
+  "Helper / Labour": "💪",
   Electrician: "⚡",
   Plumber: "🔧",
+  Carpenter: "🪚",
+  Welder: "🔥",
   Painter: "🎨",
+  Mechanic: "🔩",
+  "HR Manager": "👔",
+  Accountant: "📊",
+  "Account Manager": "📋",
+  "Office Assistant": "🗂️",
+  Supervisor: "📋",
+  Foreman: "👷",
+  "Site Engineer": "📐",
+  "Project Manager": "📌",
+  "Machine Mechanic": "⚙️",
+  "Workshop Mechanic": "🔧",
+  "Machine Incharge": "🏭",
+  "Maintenance Engineer": "🛠️",
+  "Equipment Supervisor": "🏗️",
+  "Car Driver": "🚗",
+  "Bolero Driver": "🚙",
+  "Pickup Driver": "🛻",
+  "Truck Driver": "🚚",
+  "Tipper Driver": "🚛",
+  "Trailer Driver": "🚛",
+  "Dumper Driver": "🚛",
+  "Tractor Driver": "🚜",
+  "Bus Driver": "🚌",
+  // legacy aliases
   Labour: "💪",
   Driver: "🚗",
-  Carpenter: "🪚",
+};
+
+export const CATEGORY_COLORS: Record<string, string> = {
+  "JCB Operator": "bg-orange-100 text-orange-800",
+  "Excavator Operator": "bg-orange-100 text-orange-800",
+  "Bulldozer Operator": "bg-orange-100 text-orange-800",
+  "Crane Operator": "bg-orange-100 text-orange-800",
+  Mason: "bg-stone-100 text-stone-800",
+  "Helper / Labour": "bg-red-100 text-red-800",
+  Electrician: "bg-yellow-100 text-yellow-800",
+  Plumber: "bg-blue-100 text-blue-800",
+  Carpenter: "bg-amber-100 text-amber-800",
+  Welder: "bg-red-100 text-red-800",
+  Painter: "bg-purple-100 text-purple-800",
+  Mechanic: "bg-gray-100 text-gray-800",
+  "HR Manager": "bg-blue-100 text-blue-800",
+  Accountant: "bg-indigo-100 text-indigo-800",
+  "Account Manager": "bg-indigo-100 text-indigo-800",
+  "Office Assistant": "bg-sky-100 text-sky-800",
+  Supervisor: "bg-blue-100 text-blue-800",
+  Foreman: "bg-blue-100 text-blue-800",
+  "Site Engineer": "bg-cyan-100 text-cyan-800",
+  "Project Manager": "bg-violet-100 text-violet-800",
+  "Machine Mechanic": "bg-gray-100 text-gray-800",
+  "Workshop Mechanic": "bg-gray-100 text-gray-800",
+  "Machine Incharge": "bg-slate-100 text-slate-800",
+  "Maintenance Engineer": "bg-zinc-100 text-zinc-800",
+  "Equipment Supervisor": "bg-stone-100 text-stone-800",
+  "Car Driver": "bg-green-100 text-green-800",
+  "Bolero Driver": "bg-green-100 text-green-800",
+  "Pickup Driver": "bg-emerald-100 text-emerald-800",
+  "Truck Driver": "bg-teal-100 text-teal-800",
+  "Tipper Driver": "bg-teal-100 text-teal-800",
+  "Trailer Driver": "bg-teal-100 text-teal-800",
+  "Dumper Driver": "bg-teal-100 text-teal-800",
+  "Tractor Driver": "bg-lime-100 text-lime-800",
+  "Bus Driver": "bg-green-100 text-green-800",
+  // legacy
+  Labour: "bg-red-100 text-red-800",
+  Driver: "bg-green-100 text-green-800",
+};
+
+export type DocGroup =
+  | "driver"
+  | "machine_operator"
+  | "construction"
+  | "helper"
+  | "mechanic"
+  | "office_staff"
+  | "builder"
+  | "general";
+
+export const PROFESSION_DOC_GROUPS: Record<string, DocGroup> = {
+  // Drivers
+  "Car Driver": "driver",
+  "Bolero Driver": "driver",
+  "Pickup Driver": "driver",
+  "Truck Driver": "driver",
+  "Tipper Driver": "driver",
+  "Trailer Driver": "driver",
+  "Dumper Driver": "driver",
+  "Tractor Driver": "driver",
+  "Bus Driver": "driver",
+  // Machine Operators
+  "JCB Operator": "machine_operator",
+  "Excavator Operator": "machine_operator",
+  "Bulldozer Operator": "machine_operator",
+  "Crane Operator": "machine_operator",
+  // Construction
+  Mason: "construction",
+  Carpenter: "construction",
+  Painter: "construction",
+  Welder: "construction",
+  Electrician: "construction",
+  Plumber: "construction",
+  // Helper
+  "Helper / Labour": "helper",
+  // Mechanic
+  Mechanic: "mechanic",
+  "Machine Mechanic": "mechanic",
+  "Workshop Mechanic": "mechanic",
+  "Machine Incharge": "mechanic",
+  "Maintenance Engineer": "mechanic",
+  "Equipment Supervisor": "mechanic",
+  // Office Staff
+  "HR Manager": "office_staff",
+  Accountant: "office_staff",
+  "Account Manager": "office_staff",
+  "Office Assistant": "office_staff",
+  Supervisor: "office_staff",
+  Foreman: "office_staff",
+  "Site Engineer": "office_staff",
+  "Project Manager": "office_staff",
+  // Builder/Contractor
+  "Builder / Contractor": "builder",
 };

@@ -11,7 +11,9 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -29,7 +31,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useActor } from "../hooks/useActor";
 import { useCreateJobApproved } from "../hooks/useQueries";
-import { CATEGORIES, CATEGORY_EMOJIS } from "../lib/constants";
+import { CATEGORY_EMOJIS, MAIN_CATEGORIES } from "../lib/constants";
 
 type PaymentMethod = "upi" | "card" | "netbanking";
 type Step = "form" | "payment" | "processing" | "success" | "failed";
@@ -570,10 +572,17 @@ export function PostJob() {
               <SelectValue placeholder="Worker category chunein" />
             </SelectTrigger>
             <SelectContent>
-              {CATEGORIES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {CATEGORY_EMOJIS[c]} {c}
-                </SelectItem>
+              {MAIN_CATEGORIES.map((group) => (
+                <SelectGroup key={group.id}>
+                  <SelectLabel>
+                    {group.emoji} {group.name}
+                  </SelectLabel>
+                  {group.subcategories.map((sub) => (
+                    <SelectItem key={sub} value={sub}>
+                      {CATEGORY_EMOJIS[sub] || "👷"} {sub}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>

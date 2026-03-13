@@ -4,6 +4,7 @@ import { Briefcase, Phone, PlusCircle, UserPlus, Users } from "lucide-react";
 import { motion } from "motion/react";
 import { useRef, useState } from "react";
 import { useActor } from "../hooks/useActor";
+import { CATEGORY_EMOJIS, MAIN_CATEGORIES } from "../lib/constants";
 
 const ACTIONS = [
   {
@@ -44,17 +45,6 @@ const ACTIONS = [
   },
 ];
 
-const DEFAULT_CATEGORIES = [
-  "🚜 JCB Operator",
-  "⚡ Electrician",
-  "🔧 Plumber",
-  "🧱 Mason",
-  "🎨 Painter",
-  "💪 Labour",
-  "🚗 Driver",
-  "🪚 Carpenter",
-];
-
 export function Home() {
   const navigate = useNavigate();
   const { actor, isFetching } = useActor();
@@ -70,27 +60,6 @@ export function Home() {
     },
     enabled: !!actor && !isFetching,
   });
-
-  const { data: categories = [] } = useQuery({
-    queryKey: ["categories"],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.getCategories();
-    },
-    enabled: !!actor && !isFetching,
-  });
-
-  const rawCategories =
-    categories.length > 0 ? categories.map((c) => c.name) : DEFAULT_CATEGORIES;
-
-  // Ensure JCB Operator is always first
-  const jcbEntry = rawCategories.find((c) => c.toLowerCase().includes("jcb"));
-  const otherCategories = rawCategories.filter(
-    (c) => !c.toLowerCase().includes("jcb"),
-  );
-  const categoryLabels = jcbEntry
-    ? [jcbEntry, ...otherCategories]
-    : rawCategories;
 
   function handleTitleTap() {
     tapCount.current += 1;
@@ -130,7 +99,7 @@ export function Home() {
           className="relative z-10"
         >
           <p className="text-orange-200 text-sm font-semibold mb-1 tracking-wide uppercase">
-            🇮🇳 India's Own
+            🇮🇳 India&apos;s Own
           </p>
           {/* biome-ignore lint/a11y/useKeyWithClickEvents: hidden admin trigger, intentional tap-only interaction */}
           <h1
@@ -214,23 +183,53 @@ export function Home() {
         ))}
       </div>
 
-      {/* Category Showcase */}
+      {/* Category Groups */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5, duration: 0.4 }}
+        className="mb-8"
       >
         <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">
-          Worker Categories
+          Job Categories
         </h2>
-        <div className="flex flex-wrap gap-2 mb-8">
-          {categoryLabels.map((cat) => (
-            <span
-              key={cat}
-              className="bg-card border border-border rounded-full px-3 py-1.5 text-sm font-medium text-foreground shadow-xs"
+        <div className="space-y-3">
+          {MAIN_CATEGORIES.map((group, i) => (
+            <motion.div
+              key={group.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.55 + i * 0.07, duration: 0.35 }}
+              data-ocid={"home.category.card"}
+              className={`rounded-2xl border ${group.borderColor} ${group.bgColor} p-4`}
             >
-              {cat}
-            </span>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xl">{group.emoji}</span>
+                <span
+                  className={`font-display font-bold text-base ${group.textColor}`}
+                >
+                  {group.name}
+                </span>
+                <span
+                  className={`ml-auto text-xs font-medium ${group.textColor} opacity-60`}
+                >
+                  {group.subcategories.length} roles
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {group.subcategories.map((sub) => (
+                  <button
+                    key={sub}
+                    type="button"
+                    data-ocid="home.category.button"
+                    onClick={() => navigate({ to: "/find-work" })}
+                    className={`bg-white border ${group.borderColor} rounded-full px-2.5 py-1 text-xs font-medium ${group.textColor} shadow-xs hover:shadow-sm transition-all`}
+                  >
+                    {CATEGORY_EMOJIS[sub] || "👷"} {sub}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
           ))}
         </div>
       </motion.div>
