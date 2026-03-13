@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Briefcase, Phone, PlusCircle, Users } from "lucide-react";
+import { Briefcase, Phone, PlusCircle, UserPlus, Users } from "lucide-react";
 import { motion } from "motion/react";
 import { useRef, useState } from "react";
 import { useActor } from "../hooks/useActor";
@@ -45,10 +45,10 @@ const ACTIONS = [
 ];
 
 const DEFAULT_CATEGORIES = [
+  "🚜 JCB Operator",
   "⚡ Electrician",
   "🔧 Plumber",
   "🧱 Mason",
-  "🚜 JCB Operator",
   "🎨 Painter",
   "💪 Labour",
   "🚗 Driver",
@@ -80,8 +80,17 @@ export function Home() {
     enabled: !!actor && !isFetching,
   });
 
-  const categoryLabels =
+  const rawCategories =
     categories.length > 0 ? categories.map((c) => c.name) : DEFAULT_CATEGORIES;
+
+  // Ensure JCB Operator is always first
+  const jcbEntry = rawCategories.find((c) => c.toLowerCase().includes("jcb"));
+  const otherCategories = rawCategories.filter(
+    (c) => !c.toLowerCase().includes("jcb"),
+  );
+  const categoryLabels = jcbEntry
+    ? [jcbEntry, ...otherCategories]
+    : rawCategories;
 
   function handleTitleTap() {
     tapCount.current += 1;
@@ -151,6 +160,30 @@ export function Home() {
         </motion.div>
       )}
 
+      {/* Worker Profile CTA */}
+      <motion.button
+        data-ocid="home.create_profile_button"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08, duration: 0.4 }}
+        whileTap={{ scale: 0.97 }}
+        onClick={() => navigate({ to: "/create-profile" })}
+        className="w-full mb-5 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 text-white px-5 py-5 flex items-center gap-4 shadow-lg hover:shadow-xl transition-all duration-200 text-left"
+      >
+        <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+          <UserPlus className="w-7 h-7 text-white" />
+        </div>
+        <div className="flex-1">
+          <div className="text-xl font-display font-black leading-tight">
+            Apni Profile Banayein
+          </div>
+          <div className="text-sm opacity-85 font-body mt-0.5">
+            Worker hain? Apna naam register karein
+          </div>
+        </div>
+        <span className="text-2xl">👷</span>
+      </motion.button>
+
       {/* Action Buttons */}
       <div className="grid grid-cols-2 gap-3 mb-8">
         {ACTIONS.map((action, i) => (
@@ -159,7 +192,7 @@ export function Home() {
             data-ocid={action.ocid}
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 + i * 0.08, duration: 0.4 }}
+            transition={{ delay: 0.15 + i * 0.08, duration: 0.4 }}
             whileTap={{ scale: 0.96 }}
             onClick={() => navigate({ to: action.path })}
             className={`relative overflow-hidden ${action.bg} rounded-2xl p-5 flex flex-col items-start gap-3 shadow-card hover:shadow-card-hover transition-all duration-200 border border-border text-left`}

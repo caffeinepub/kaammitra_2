@@ -1,4 +1,11 @@
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -20,6 +27,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useActor } from "../hooks/useActor";
 import { useCreateJobApproved } from "../hooks/useQueries";
 import { CATEGORIES, CATEGORY_EMOJIS } from "../lib/constants";
 
@@ -29,6 +37,7 @@ type Step = "form" | "payment" | "processing" | "success" | "failed";
 const PAYMENT_AMOUNT = 99;
 
 export function PostJob() {
+  const { actor, isFetching } = useActor();
   const [form, setForm] = useState({
     category: "",
     location: "",
@@ -49,11 +58,16 @@ export function PostJob() {
     id: string;
     category: string;
   } | null>(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
   const { mutateAsync, isPending } = useCreateJobApproved();
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!actor) {
+      toast.error("App connect ho rahi hai... Thoda wait karo");
+      return;
+    }
     if (
       !form.category ||
       !form.location ||
@@ -101,7 +115,7 @@ export function PostJob() {
     // Simulate payment processing (2s delay)
     await new Promise((res) => setTimeout(res, 2000));
 
-    // Demo: 90% success rate simulation
+    // Demo: 95% success rate simulation
     const success = Math.random() > 0.05;
 
     if (success) {
@@ -110,6 +124,7 @@ export function PostJob() {
         setSavedJob({ id: job.id.toString(), category: job.category });
         setStep("success");
         toast.success("Payment safal! Job post ho gayi!");
+        setShowSuccessDialog(true);
       } catch {
         setStep("failed");
         setPayError("Job save karne mein error. Support se sampark karo.");
@@ -137,12 +152,77 @@ export function PostJob() {
     setPayError("");
     setStep("form");
     setSavedJob(null);
+    setShowSuccessDialog(false);
   };
 
-  // ─── SUCCESS SCREEN ───────────────────────────────────────────────
+  // ─── SUCCESS DIALOG ──────────────────────────────────────────────
+  const SuccessDialog = (
+    <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+      <DialogContent
+        data-ocid="post_job.success_dialog"
+        className="max-w-sm mx-auto rounded-2xl"
+      >
+        <DialogHeader className="text-center items-center pb-2">
+          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-3">
+            <CheckCircle2 className="w-9 h-9 text-green-600" />
+          </div>
+          <DialogTitle className="text-xl font-display font-black text-green-700">
+            Payment Safal! Job Post Ho Gayi! 🎉
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-2 text-sm">
+          <p className="text-xs font-semibold text-green-800 uppercase tracking-wide mb-2">
+            Job Details
+          </p>
+          {savedJob && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Job ID</span>
+              <span className="font-mono font-semibold">#{savedJob.id}</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Category</span>
+            <span className="font-semibold">{form.category}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Location</span>
+            <span className="font-semibold">{form.location}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Pay Offered</span>
+            <span className="font-semibold">{form.payOffered}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Payment</span>
+            <span className="font-semibold text-green-700">
+              ₹{PAYMENT_AMOUNT} ✓
+            </span>
+          </div>
+        </div>
+
+        <p className="text-center text-sm text-muted-foreground">
+          Aapki job ab &apos;Find Work&apos; mein dikhayi de rahi hai
+        </p>
+
+        <DialogFooter>
+          <Button
+            data-ocid="post_job.success_confirm_button"
+            className="w-full touch-btn font-display font-bold"
+            onClick={resetAll}
+          >
+            Naya Job Post Karo
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
+  // ─── SUCCESS SCREEN (triggers dialog) ─────────────────────────────
   if (step === "success") {
     return (
       <div className="page-container pt-8">
+        {SuccessDialog}
         <div
           data-ocid="post_job.success_state"
           className="card-elevated p-8 text-center animate-slide-up"
@@ -153,42 +233,8 @@ export function PostJob() {
           <h2 className="text-2xl font-display font-black mb-1 text-green-700">
             Payment Safal!
           </h2>
-          <p className="text-sm text-muted-foreground mb-1">
+          <p className="text-sm text-muted-foreground mb-4">
             ₹{PAYMENT_AMOUNT} payment ho gayi
-          </p>
-          <div className="my-4 bg-green-50 border border-green-200 rounded-xl p-4 text-left space-y-2">
-            <p className="text-xs font-semibold text-green-800 uppercase tracking-wide">
-              Job Details Saved
-            </p>
-            <div className="text-sm space-y-1">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Category</span>
-                <span className="font-semibold">{form.category}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Location</span>
-                <span className="font-semibold">{form.location}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Pay Offered</span>
-                <span className="font-semibold">{form.payOffered}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Posted By</span>
-                <span className="font-semibold">{form.postedBy}</span>
-              </div>
-              {savedJob && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Job ID</span>
-                  <span className="font-mono text-xs font-semibold">
-                    #{savedJob.id}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-          <p className="text-sm text-muted-foreground mb-6">
-            Aapki job ab "Find Work" list mein dikhayi de rahi hai
           </p>
           <Button
             data-ocid="post_job.new_post_button"
@@ -607,9 +653,11 @@ export function PostJob() {
           data-ocid="post_job.submit_button"
           type="submit"
           className="w-full touch-btn h-14 text-lg font-display font-bold mt-2"
-          disabled={isPending}
+          disabled={isPending || isFetching || !actor}
         >
-          Aage Badho: ₹{PAYMENT_AMOUNT} Pay Karo 💳
+          {isFetching
+            ? "Connecting..."
+            : `Aage Badho: ₹${PAYMENT_AMOUNT} Pay Karo 💳`}
         </Button>
       </form>
     </div>

@@ -1,4 +1,11 @@
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -12,6 +19,7 @@ import { CheckCircle2, Loader2, UserCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { Worker } from "../backend.d";
+import { useActor } from "../hooks/useActor";
 import { useCreateWorker } from "../hooks/useQueries";
 import { CATEGORIES, CATEGORY_EMOJIS } from "../lib/constants";
 
@@ -49,6 +57,7 @@ function saveProfile(worker: Worker) {
 }
 
 export function CreateProfile() {
+  const { actor, isFetching } = useActor();
   const [form, setForm] = useState({
     name: "",
     category: "",
@@ -59,6 +68,8 @@ export function CreateProfile() {
   });
   const [savedProfile, setSavedProfile] = useState<Worker | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [justSaved, setJustSaved] = useState<Worker | null>(null);
   const { mutateAsync, isPending } = useCreateWorker();
 
   // Load existing profile from localStorage on mount
@@ -71,6 +82,10 @@ export function CreateProfile() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!actor) {
+      toast.error("App connect ho rahi hai... Thoda wait karo");
+      return;
+    }
     if (
       !form.name ||
       !form.category ||
@@ -84,18 +99,94 @@ export function CreateProfile() {
     try {
       const worker = await mutateAsync(form);
       saveProfile(worker);
-      setSavedProfile(worker);
-      setShowForm(false);
+      setJustSaved(worker);
       toast.success("Profile successfully save ho gayi!");
+      setSuccessDialogOpen(true);
     } catch {
       toast.error("Kuch galat ho gaya. Dobara try karo.");
     }
   };
 
+  const handleSuccessDialogClose = () => {
+    setSuccessDialogOpen(false);
+    if (justSaved) {
+      setSavedProfile(justSaved);
+      setJustSaved(null);
+      setShowForm(false);
+    }
+  };
+
+  // ─── SUCCESS DIALOG ──────────────────────────────────────────────
+  const SuccessDialog = (
+    <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
+      <DialogContent
+        data-ocid="create_profile.success_dialog"
+        className="max-w-sm mx-auto rounded-2xl"
+      >
+        <DialogHeader className="text-center items-center pb-2">
+          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-3">
+            <CheckCircle2 className="w-9 h-9 text-green-600" />
+          </div>
+          <DialogTitle className="text-xl font-display font-black text-green-700">
+            Profile Save Ho Gayi! ✅
+          </DialogTitle>
+        </DialogHeader>
+
+        {justSaved && (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-2 text-sm">
+            <p className="text-xs font-semibold text-green-800 uppercase tracking-wide mb-2">
+              Saved Profile Details
+            </p>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Naam</span>
+              <span className="font-semibold">{justSaved.name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Category</span>
+              <span className="font-semibold">
+                {CATEGORY_EMOJIS[justSaved.category]} {justSaved.category}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Location</span>
+              <span className="font-semibold">{justSaved.location}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Expected Salary</span>
+              <span className="font-semibold">{justSaved.expectedSalary}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Profile ID</span>
+              <span className="font-mono font-semibold">
+                #{justSaved.id.toString()}
+              </span>
+            </div>
+          </div>
+        )}
+
+        <p className="text-center text-sm text-muted-foreground">
+          ✅ Aapka profile database mein save hai. Contractors aapko dekh sakte
+          hain.
+        </p>
+
+        <DialogFooter>
+          <Button
+            data-ocid="create_profile.success_confirm_button"
+            className="w-full touch-btn font-display font-bold"
+            onClick={handleSuccessDialogClose}
+          >
+            Theek Hai 👍
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   // ─── EXISTING PROFILE VIEW ──────────────────────────────────────
   if (savedProfile && !showForm) {
     return (
       <div className="page-container pt-8">
+        {SuccessDialog}
         {/* Success Banner */}
         <div
           data-ocid="create_profile.success_state"
@@ -206,6 +297,7 @@ export function CreateProfile() {
   // ─── FORM ─────────────────────────────────────────────────────────
   return (
     <div className="page-container pt-4">
+      {SuccessDialog}
       <h1 className="text-2xl font-display font-black mb-1">
         Worker Profile Banao
       </h1>
@@ -308,12 +400,14 @@ export function CreateProfile() {
           data-ocid="create_profile.submit_button"
           type="submit"
           className="w-full touch-btn h-14 text-lg font-display font-bold mt-2"
-          disabled={isPending}
+          disabled={isPending || isFetching || !actor}
         >
           {isPending ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin mr-2" /> Saving...
             </>
+          ) : isFetching ? (
+            "Connecting..."
           ) : (
             "Profile Banao 👷"
           )}
