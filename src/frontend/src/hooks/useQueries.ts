@@ -20,6 +20,8 @@ export function useGetAllJobs(
       return actor.getAllJobs();
     },
     enabled: !!actor && !isFetching,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 
@@ -41,6 +43,8 @@ export function useGetAllWorkers(
       return actor.getAllWorkers();
     },
     enabled: !!actor && !isFetching,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 

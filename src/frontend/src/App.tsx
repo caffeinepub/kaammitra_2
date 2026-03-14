@@ -12,19 +12,35 @@ import {
 import {
   ArrowLeft,
   Briefcase,
+  CalendarDays,
   HomeIcon,
+  Map as MapIcon,
   Phone,
   PlusCircle,
   Settings,
   Users,
 } from "lucide-react";
+import { useEffect } from "react";
+import { setOnlineStatus } from "./lib/constants";
 import AdminPanel from "./pages/AdminPanel";
+import { BookingCalendar } from "./pages/BookingCalendar";
+import { BookingHistory } from "./pages/BookingHistory";
 import { Contact } from "./pages/Contact";
+import { ContractorDashboard } from "./pages/ContractorDashboard";
+import { ContractorRegister } from "./pages/ContractorRegister";
 import { CreateProfile } from "./pages/CreateProfile";
+import { EscrowScreen } from "./pages/EscrowScreen";
 import { FindWork } from "./pages/FindWork";
 import { FindWorker } from "./pages/FindWorker";
 import { Home } from "./pages/Home";
+import { PaymentHistory } from "./pages/PaymentHistory";
+import { PaymentScreen } from "./pages/PaymentScreen";
 import { PostJob } from "./pages/PostJob";
+import { Settings as SettingsPage } from "./pages/Settings";
+import { WorkerIDCard } from "./pages/WorkerIDCard";
+import { WorkerMap } from "./pages/WorkerMap";
+import { WorkerVerification } from "./pages/WorkerVerification";
+import { WorkerWallet } from "./pages/WorkerWallet";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +56,8 @@ const NAV_ITEMS = [
   { path: "/find-worker", icon: Users, label: "Worker" },
   { path: "/post-job", icon: PlusCircle, label: "Job Do" },
   { path: "/contact", icon: Phone, label: "Contact" },
+  { path: "/worker-map", icon: MapIcon, label: "Map" },
+  { path: "/booking-history", icon: CalendarDays, label: "Bookings" },
 ];
 
 function LayoutWrapper() {
@@ -47,6 +65,31 @@ function LayoutWrapper() {
   const currentPath = routerState.location.pathname;
   const isHome = currentPath === "/";
   const isAdmin = currentPath === "/admin";
+
+  // Online status on app open
+  useEffect(() => {
+    try {
+      const profile = localStorage.getItem("kaam_mitra_my_extended");
+      if (profile) {
+        const parsed = JSON.parse(profile);
+        if (parsed.mobile) {
+          setOnlineStatus(parsed.mobile, true);
+        }
+      }
+    } catch {}
+
+    const handleUnload = () => {
+      try {
+        const p = localStorage.getItem("kaam_mitra_my_extended");
+        if (p) {
+          const parsed = JSON.parse(p);
+          if (parsed.mobile) setOnlineStatus(parsed.mobile, false);
+        }
+      } catch {}
+    };
+    window.addEventListener("beforeunload", handleUnload);
+    return () => window.removeEventListener("beforeunload", handleUnload);
+  }, []);
 
   if (isAdmin) {
     return (
@@ -109,7 +152,7 @@ function LayoutWrapper() {
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border shadow-lg">
-        <div className="max-w-[520px] mx-auto grid grid-cols-4">
+        <div className="max-w-[520px] mx-auto grid grid-cols-6">
           {NAV_ITEMS.map(({ path, icon: Icon, label }) => {
             const active = currentPath === path;
             return (
@@ -173,6 +216,68 @@ const adminRoute = createRoute({
   path: "/admin",
   component: AdminPanel,
 });
+const contractorRegisterRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/contractor-register",
+  component: ContractorRegister,
+});
+const contractorDashboardRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/contractor-dashboard",
+  component: ContractorDashboard,
+});
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/settings",
+  component: SettingsPage,
+});
+const workerVerificationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/worker-verification",
+  component: WorkerVerification,
+});
+const workerIDCardRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/worker-id-card",
+  component: WorkerIDCard,
+});
+const workerMapRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/worker-map",
+  component: WorkerMap,
+});
+
+const bookingCalendarRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/booking-calendar/$workerId",
+  component: BookingCalendar,
+});
+const bookingHistoryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/booking-history",
+  component: BookingHistory,
+});
+
+const paymentRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/payment",
+  component: PaymentScreen,
+});
+const paymentHistoryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/payment-history",
+  component: PaymentHistory,
+});
+const workerWalletRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/worker-wallet",
+  component: WorkerWallet,
+});
+const escrowRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/escrow",
+  component: EscrowScreen,
+});
 
 const routeTree = rootRoute.addChildren([
   homeRoute,
@@ -182,6 +287,18 @@ const routeTree = rootRoute.addChildren([
   createProfileRoute,
   contactRoute,
   adminRoute,
+  contractorRegisterRoute,
+  contractorDashboardRoute,
+  settingsRoute,
+  workerVerificationRoute,
+  workerIDCardRoute,
+  workerMapRoute,
+  bookingCalendarRoute,
+  bookingHistoryRoute,
+  paymentRoute,
+  paymentHistoryRoute,
+  workerWalletRoute,
+  escrowRoute,
 ]);
 
 const router = createRouter({ routeTree });

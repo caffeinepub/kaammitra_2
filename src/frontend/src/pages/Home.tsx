@@ -1,10 +1,33 @@
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Briefcase, Phone, PlusCircle, UserPlus, Users } from "lucide-react";
+import {
+  Bell,
+  Briefcase,
+  Phone,
+  PlusCircle,
+  Settings,
+  UserPlus,
+  Users,
+  X,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useRef, useState } from "react";
 import { useActor } from "../hooks/useActor";
-import { CATEGORY_EMOJIS, MAIN_CATEGORIES } from "../lib/constants";
+import {
+  type AppNotification,
+  CATEGORY_EMOJIS,
+  MAIN_CATEGORIES,
+  getMyExtendedProfile,
+  getNotificationsForUser,
+  getUnreadCount,
+  markNotificationsRead,
+} from "../lib/constants";
 
 const ACTIONS = [
   {
@@ -83,6 +106,27 @@ export function Home() {
     appContent?.bannerText || "Connect with skilled workers & contractors";
   const announcement = appContent?.announcement || "";
 
+  const [notifSheetOpen, setNotifSheetOpen] = useState(false);
+  const myProfile = getMyExtendedProfile();
+  const myMobile = myProfile?.mobile ?? "";
+  const [notifications, setNotifications] = useState<AppNotification[]>(() =>
+    myMobile ? getNotificationsForUser(myMobile) : [],
+  );
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  function openNotifications() {
+    const latest = myMobile ? getNotificationsForUser(myMobile) : [];
+    setNotifications(latest);
+    setNotifSheetOpen(true);
+    if (myMobile) {
+      markNotificationsRead(myMobile);
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    }
+  }
+
+  const hasContractorProfile = !!localStorage.getItem("contractorProfile");
+  const hasWorkerProfile = !!localStorage.getItem("workerProfile");
+
   return (
     <div className="page-container pt-0">
       {/* Hero */}
@@ -98,9 +142,26 @@ export function Home() {
           transition={{ duration: 0.5 }}
           className="relative z-10"
         >
-          <p className="text-orange-200 text-sm font-semibold mb-1 tracking-wide uppercase">
-            🇮🇳 India&apos;s Own
-          </p>
+          <div className="flex items-start justify-between">
+            <p className="text-orange-200 text-sm font-semibold mb-1 tracking-wide uppercase">
+              🇮🇳 India&apos;s Own
+            </p>
+            {myMobile && (
+              <button
+                type="button"
+                data-ocid="home.notifications_button"
+                onClick={openNotifications}
+                className="relative p-2 rounded-xl bg-white/20 hover:bg-white/30 transition-colors"
+              >
+                <Bell className="w-5 h-5 text-white" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
           {/* biome-ignore lint/a11y/useKeyWithClickEvents: hidden admin trigger, intentional tap-only interaction */}
           <h1
             className={`text-4xl font-display font-black leading-none mb-2 select-none cursor-default transition-opacity duration-200 ${
@@ -130,27 +191,102 @@ export function Home() {
       )}
 
       {/* Worker Profile CTA */}
+      <div className="relative mb-3">
+        <motion.button
+          data-ocid="home.create_profile_button"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08, duration: 0.4 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => navigate({ to: "/create-profile" })}
+          className="w-full rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 text-white px-5 py-5 flex items-center gap-4 shadow-lg hover:shadow-xl transition-all duration-200 text-left"
+        >
+          <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <UserPlus className="w-7 h-7 text-white" />
+          </div>
+          <div className="flex-1">
+            <div className="text-xl font-display font-black leading-tight">
+              Apni Profile Banayein
+            </div>
+            <div className="text-sm opacity-85 font-body mt-0.5">
+              Worker hain? Apna naam register karein
+            </div>
+          </div>
+          <span className="text-2xl">👷</span>
+        </motion.button>
+
+        {/* Settings button for workers who have a profile */}
+        {hasWorkerProfile && (
+          <motion.button
+            data-ocid="home.settings_button"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2, duration: 0.3 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => navigate({ to: "/settings" })}
+            className="absolute top-2 right-2 w-9 h-9 rounded-xl bg-white/25 hover:bg-white/40 transition-colors flex items-center justify-center"
+            aria-label="Settings"
+            title="Settings"
+          >
+            <Settings className="w-4 h-4 text-white" />
+          </motion.button>
+        )}
+      </div>
+
+      {/* Contractor CTA */}
       <motion.button
-        data-ocid="home.create_profile_button"
+        data-ocid="home.contractor_register_button"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.08, duration: 0.4 }}
+        transition={{ delay: 0.13, duration: 0.4 }}
         whileTap={{ scale: 0.97 }}
-        onClick={() => navigate({ to: "/create-profile" })}
-        className="w-full mb-5 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 text-white px-5 py-5 flex items-center gap-4 shadow-lg hover:shadow-xl transition-all duration-200 text-left"
+        onClick={() =>
+          navigate({
+            to: hasContractorProfile
+              ? "/contractor-dashboard"
+              : "/contractor-register",
+          })
+        }
+        className="w-full mb-5 rounded-2xl bg-gradient-to-r from-indigo-500 to-blue-600 text-white px-5 py-5 flex items-center gap-4 shadow-lg hover:shadow-xl transition-all duration-200 text-left"
       >
         <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-          <UserPlus className="w-7 h-7 text-white" />
+          <Briefcase className="w-7 h-7 text-white" />
         </div>
         <div className="flex-1">
           <div className="text-xl font-display font-black leading-tight">
-            Apni Profile Banayein
+            {hasContractorProfile
+              ? "Contractor Dashboard"
+              : "Contractor Hain? Register Karein"}
           </div>
           <div className="text-sm opacity-85 font-body mt-0.5">
-            Worker hain? Apna naam register karein
+            Job post karein, workers dhundein
           </div>
         </div>
-        <span className="text-2xl">👷</span>
+        <span className="text-2xl">🏗️</span>
+      </motion.button>
+
+      {/* Map Quick Access */}
+      <motion.button
+        data-ocid="home.map_button"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.16, duration: 0.4 }}
+        whileTap={{ scale: 0.97 }}
+        onClick={() => navigate({ to: "/worker-map" })}
+        className="w-full mb-5 rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-600 text-white px-5 py-4 flex items-center gap-4 shadow-md hover:shadow-lg transition-all duration-200 text-left"
+      >
+        <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+          <span className="text-2xl">🗺️</span>
+        </div>
+        <div className="flex-1">
+          <div className="text-lg font-display font-black leading-tight">
+            Map Mein Dhundho
+          </div>
+          <div className="text-sm opacity-85 font-body mt-0.5">
+            Nearby workers map par dekhein
+          </div>
+        </div>
+        <span className="text-2xl">📍</span>
       </motion.button>
 
       {/* Action Buttons */}
@@ -233,6 +369,66 @@ export function Home() {
           ))}
         </div>
       </motion.div>
+
+      {/* Notification Sheet */}
+      <Sheet open={notifSheetOpen} onOpenChange={setNotifSheetOpen}>
+        <SheetContent
+          data-ocid="home.notifications_sheet"
+          side="right"
+          className="w-[90vw] max-w-sm"
+        >
+          <SheetHeader className="pb-4">
+            <SheetTitle className="font-display font-black flex items-center gap-2">
+              <Bell className="w-5 h-5" /> Notifications
+            </SheetTitle>
+          </SheetHeader>
+
+          {notifications.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-3xl mb-2">🔔</p>
+              <p className="font-semibold text-foreground">
+                Koi notification nahi
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Sab aapdo pe!
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3 overflow-y-auto max-h-[75vh] pr-1">
+              {notifications.map((n) => {
+                const mins = Math.floor((Date.now() - n.createdAt) / 60000);
+                const timeAgo =
+                  mins < 1
+                    ? "Abhi"
+                    : mins < 60
+                      ? `${mins}m ago`
+                      : `${Math.floor(mins / 60)}h ago`;
+                return (
+                  <div
+                    key={n.id}
+                    className={`rounded-xl p-3 border ${n.read ? "bg-muted/30 border-border" : "bg-primary/5 border-primary/20"}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-bold text-foreground leading-snug">
+                        {n.title}
+                      </p>
+                      {!n.read && (
+                        <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {n.body}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      {timeAgo}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* Footer */}
       <footer className="text-center text-xs text-muted-foreground py-4">

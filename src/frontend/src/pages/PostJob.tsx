@@ -31,7 +31,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useActor } from "../hooks/useActor";
 import { useCreateJobApproved } from "../hooks/useQueries";
-import { CATEGORY_EMOJIS, MAIN_CATEGORIES } from "../lib/constants";
+import {
+  CATEGORY_EMOJIS,
+  MAIN_CATEGORIES,
+  saveExtendedJob,
+} from "../lib/constants";
 
 type PaymentMethod = "upi" | "card" | "netbanking";
 type Step = "form" | "payment" | "processing" | "success" | "failed";
@@ -41,12 +45,16 @@ const PAYMENT_AMOUNT = 99;
 export function PostJob() {
   const { actor, isFetching } = useActor();
   const [form, setForm] = useState({
+    jobTitle: "",
     category: "",
+    workersNeeded: "1",
     location: "",
-    description: "",
+    salaryType: "daily" as "daily" | "monthly",
     payOffered: "",
-    postedBy: "",
+    workDuration: "",
     phone: "",
+    description: "",
+    postedBy: "",
   });
   const [step, setStep] = useState<Step>("form");
   const [payMethod, setPayMethod] = useState<PaymentMethod>("upi");
@@ -71,10 +79,13 @@ export function PostJob() {
       return;
     }
     if (
+      !form.jobTitle ||
       !form.category ||
+      !form.workersNeeded ||
       !form.location ||
-      !form.description ||
       !form.payOffered ||
+      !form.workDuration ||
+      !form.description ||
       !form.postedBy
     ) {
       toast.error("Sab fields bharo");
@@ -87,7 +98,6 @@ export function PostJob() {
   const handlePayment = async () => {
     setPayError("");
 
-    // Validate payment fields
     if (payMethod === "upi") {
       if (!upiId.trim() || !upiId.includes("@")) {
         setPayError("Valid UPI ID daalo (eg: name@upi)");
@@ -113,17 +123,27 @@ export function PostJob() {
     }
 
     setStep("processing");
-
-    // Simulate payment processing (2s delay)
     await new Promise((res) => setTimeout(res, 2000));
-
-    // Demo: 95% success rate simulation
     const success = Math.random() > 0.05;
 
     if (success) {
       try {
-        const job = await mutateAsync(form);
-        setSavedJob({ id: job.id.toString(), category: job.category });
+        const job = await mutateAsync({
+          category: form.category,
+          location: form.location,
+          description: form.description,
+          payOffered: `${form.payOffered}/${form.salaryType === "daily" ? "day" : "month"}`,
+          postedBy: form.postedBy,
+        });
+        const jobIdStr = job.id.toString();
+        saveExtendedJob(jobIdStr, {
+          jobTitle: form.jobTitle,
+          workersNeeded: form.workersNeeded,
+          salaryType: form.salaryType,
+          workDuration: form.workDuration,
+          contactNumber: form.phone,
+        });
+        setSavedJob({ id: jobIdStr, category: job.category });
         setStep("success");
         toast.success("Payment safal! Job post ho gayi!");
         setShowSuccessDialog(true);
@@ -139,12 +159,16 @@ export function PostJob() {
 
   const resetAll = () => {
     setForm({
+      jobTitle: "",
       category: "",
+      workersNeeded: "1",
       location: "",
-      description: "",
+      salaryType: "daily",
       payOffered: "",
-      postedBy: "",
+      workDuration: "",
       phone: "",
+      description: "",
+      postedBy: "",
     });
     setUpiId("");
     setCardNum("");
@@ -184,16 +208,30 @@ export function PostJob() {
             </div>
           )}
           <div className="flex justify-between">
+            <span className="text-muted-foreground">Job Title</span>
+            <span className="font-semibold">{form.jobTitle}</span>
+          </div>
+          <div className="flex justify-between">
             <span className="text-muted-foreground">Category</span>
             <span className="font-semibold">{form.category}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Workers Needed</span>
+            <span className="font-semibold">{form.workersNeeded}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Location</span>
             <span className="font-semibold">{form.location}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Pay Offered</span>
-            <span className="font-semibold">{form.payOffered}</span>
+            <span className="text-muted-foreground">Salary</span>
+            <span className="font-semibold">
+              {form.payOffered}/{form.salaryType === "daily" ? "Din" : "Mahina"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Duration</span>
+            <span className="font-semibold">{form.workDuration}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Payment</span>
@@ -220,7 +258,7 @@ export function PostJob() {
     </Dialog>
   );
 
-  // ─── SUCCESS SCREEN (triggers dialog) ─────────────────────────────
+  // ─── SUCCESS SCREEN ─────────────────────────────────────────────
   if (step === "success") {
     return (
       <div className="page-container pt-8">
@@ -322,7 +360,6 @@ export function PostJob() {
   if (step === "payment") {
     return (
       <div className="page-container pt-4">
-        {/* Razorpay-style header */}
         <div className="card-elevated overflow-hidden mb-4">
           <div className="bg-[#072654] text-white px-4 py-3 flex items-center justify-between">
             <div>
@@ -334,29 +371,28 @@ export function PostJob() {
               <span>Secure Payment</span>
             </div>
           </div>
-
-          {/* Job summary */}
           <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
             <p className="text-xs font-semibold text-blue-800 mb-1">
               Job Summary
             </p>
             <div className="text-xs text-blue-700 space-y-0.5">
+              <p className="font-semibold">{form.jobTitle}</p>
               <p>
                 {CATEGORY_EMOJIS[form.category]} {form.category} ·{" "}
                 {form.location}
               </p>
-              <p className="truncate">{form.description}</p>
+              <p className="text-blue-600">
+                👷 {form.workersNeeded} workers · ⏱ {form.workDuration}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Payment method tabs */}
         <div
           data-ocid="post_job.payment_method_tab"
           className="card-elevated p-4"
         >
           <p className="text-sm font-semibold mb-3">Payment Method Chunein</p>
-
           <div className="flex gap-2 mb-4">
             {[
               { id: "upi" as PaymentMethod, label: "UPI", icon: Smartphone },
@@ -387,7 +423,6 @@ export function PostJob() {
             ))}
           </div>
 
-          {/* UPI */}
           {payMethod === "upi" && (
             <div className="space-y-3">
               <div className="space-y-1.5">
@@ -419,7 +454,6 @@ export function PostJob() {
             </div>
           )}
 
-          {/* Card */}
           {payMethod === "card" && (
             <div className="space-y-3">
               <div className="space-y-1.5">
@@ -485,7 +519,6 @@ export function PostJob() {
             </div>
           )}
 
-          {/* Net Banking */}
           {payMethod === "netbanking" && (
             <div className="grid grid-cols-3 gap-2">
               {["SBI", "HDFC", "ICICI", "Axis", "Kotak", "Other"].map(
@@ -514,7 +547,6 @@ export function PostJob() {
           )}
         </div>
 
-        {/* Action buttons */}
         <div className="mt-4 space-y-3">
           <Button
             data-ocid="post_job.pay_button"
@@ -533,7 +565,6 @@ export function PostJob() {
             <X className="w-4 h-4 mr-1" /> Wapas Jao
           </Button>
         </div>
-
         <p className="text-center text-xs text-muted-foreground mt-4">
           🔒 256-bit SSL encrypted · Secure checkout
         </p>
@@ -558,6 +589,22 @@ export function PostJob() {
       </div>
 
       <form onSubmit={handleFormSubmit} className="space-y-4">
+        {/* Job Title */}
+        <div className="space-y-1.5">
+          <Label htmlFor="jobTitle">Job Title *</Label>
+          <Input
+            data-ocid="post_job.job_title_input"
+            id="jobTitle"
+            placeholder="Eg: JCB Operator Chahiye"
+            value={form.jobTitle}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, jobTitle: e.target.value }))
+            }
+            className="h-12"
+          />
+        </div>
+
+        {/* Category */}
         <div className="space-y-1.5">
           <Label htmlFor="category">Category *</Label>
           <Select
@@ -588,8 +635,26 @@ export function PostJob() {
           </Select>
         </div>
 
+        {/* Workers Needed */}
         <div className="space-y-1.5">
-          <Label htmlFor="location">Location *</Label>
+          <Label htmlFor="workersNeeded">Number of Workers Needed *</Label>
+          <Input
+            data-ocid="post_job.workers_needed_input"
+            id="workersNeeded"
+            type="number"
+            min="1"
+            placeholder="Eg: 3"
+            value={form.workersNeeded}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, workersNeeded: e.target.value }))
+            }
+            className="h-12"
+          />
+        </div>
+
+        {/* Location */}
+        <div className="space-y-1.5">
+          <Label htmlFor="location">Location / City *</Label>
           <Input
             data-ocid="post_job.location_input"
             id="location"
@@ -602,6 +667,80 @@ export function PostJob() {
           />
         </div>
 
+        {/* Salary + Type */}
+        <div className="space-y-1.5">
+          <Label>Salary *</Label>
+          <div className="flex gap-2 items-center">
+            <Input
+              data-ocid="post_job.pay_input"
+              placeholder="Eg: ₹500"
+              value={form.payOffered}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, payOffered: e.target.value }))
+              }
+              className="h-12 flex-1"
+            />
+            <div className="flex gap-1 bg-muted rounded-full p-1 shrink-0">
+              <button
+                type="button"
+                data-ocid="post_job.salary_daily_toggle"
+                onClick={() => setForm((p) => ({ ...p, salaryType: "daily" }))}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                  form.salaryType === "daily"
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Daily
+              </button>
+              <button
+                type="button"
+                data-ocid="post_job.salary_monthly_toggle"
+                onClick={() =>
+                  setForm((p) => ({ ...p, salaryType: "monthly" }))
+                }
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                  form.salaryType === "monthly"
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Monthly
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Work Duration */}
+        <div className="space-y-1.5">
+          <Label htmlFor="workDuration">Work Duration *</Label>
+          <Input
+            data-ocid="post_job.work_duration_input"
+            id="workDuration"
+            placeholder="Eg: 7 Din, 1 Mahina, 3 Months"
+            value={form.workDuration}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, workDuration: e.target.value }))
+            }
+            className="h-12"
+          />
+        </div>
+
+        {/* Contact Number */}
+        <div className="space-y-1.5">
+          <Label htmlFor="phone">Contact Number</Label>
+          <Input
+            data-ocid="post_job.phone_input"
+            id="phone"
+            type="tel"
+            placeholder="Workers contact kar sakein"
+            value={form.phone}
+            onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+            className="h-12"
+          />
+        </div>
+
+        {/* Description */}
         <div className="space-y-1.5">
           <Label htmlFor="description">Job Description *</Label>
           <Textarea
@@ -617,20 +756,7 @@ export function PostJob() {
           />
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="pay">Pay Offered *</Label>
-          <Input
-            data-ocid="post_job.pay_input"
-            id="pay"
-            placeholder="Eg: ₹500/day, ₹15000/month"
-            value={form.payOffered}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, payOffered: e.target.value }))
-            }
-            className="h-12"
-          />
-        </div>
-
+        {/* Your Name */}
         <div className="space-y-1.5">
           <Label htmlFor="name">Your Name *</Label>
           <Input
@@ -641,19 +767,6 @@ export function PostJob() {
             onChange={(e) =>
               setForm((p) => ({ ...p, postedBy: e.target.value }))
             }
-            className="h-12"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="phone">Mobile Number (Optional)</Label>
-          <Input
-            data-ocid="post_job.phone_input"
-            id="phone"
-            type="tel"
-            placeholder="Workers contact kar sakein"
-            value={form.phone}
-            onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
             className="h-12"
           />
         </div>

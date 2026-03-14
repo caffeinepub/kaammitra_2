@@ -18,16 +18,31 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useNavigate } from "@tanstack/react-router";
-import { CheckCircle2, Loader2, Upload, UserCircle2 } from "lucide-react";
+import {
+  CheckCircle2,
+  IndianRupee,
+  Loader2,
+  MapPin,
+  Navigation,
+  Upload,
+  UserCircle2,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { Worker } from "../backend.d";
 import { useActor } from "../hooks/useActor";
 import { useCreateWorker } from "../hooks/useQueries";
 import {
+  type AvailabilityStatus,
   CATEGORY_EMOJIS,
+  INDIA_STATES_CITIES,
   MAIN_CATEGORIES,
   PROFESSION_DOC_GROUPS,
+  type WorkType,
+  getCategoryFee,
+  getMyExtendedProfile,
+  saveExtendedById,
+  saveMyExtendedProfile,
 } from "../lib/constants";
 
 const STORAGE_KEY = "kaam_mitra_worker_profile";
@@ -70,6 +85,9 @@ async function sendToGoogleSheets(data: {
   experience: string;
   location: string;
   salary: string;
+  whatsapp?: string;
+  availability?: string;
+  workType?: string;
 }) {
   const webhookUrl = localStorage.getItem(SHEETS_WEBHOOK_KEY);
   if (!webhookUrl) return;
@@ -81,12 +99,7 @@ async function sendToGoogleSheets(data: {
       body: JSON.stringify({
         type: "worker_profile",
         timestamp: new Date().toISOString(),
-        name: data.name,
-        mobile: data.mobile,
-        category: data.category,
-        experience: data.experience,
-        location: data.location,
-        salary: data.salary,
+        ...data,
       }),
     });
   } catch {
@@ -141,6 +154,27 @@ function FileUploadField({
   );
 }
 
+// ─── SECTION HEADER ──────────────────────────────────────────────────────────
+function SectionHeader({
+  emoji,
+  title,
+  subtitle,
+}: { emoji: string; title: string; subtitle?: string }) {
+  return (
+    <div className="flex items-center gap-2 mb-3">
+      <span className="text-xl">{emoji}</span>
+      <div>
+        <p className="font-display font-bold text-base text-foreground">
+          {title}
+        </p>
+        {subtitle && (
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 export function CreateProfile() {
   const { actor } = useActor();
@@ -153,6 +187,13 @@ export function CreateProfile() {
     location: "",
     expectedSalary: "",
     phone: "",
+    whatsapp: "",
+    state: "",
+    city: "",
+    lat: 0,
+    lng: 0,
+    availability: "available" as AvailabilityStatus,
+    workType: "daily" as WorkType,
     // OTP
     otpSent: false,
     otpValue: "",
@@ -168,6 +209,7 @@ export function CreateProfile() {
     operatorCertFileName: "",
     // Construction
     skillCertFileName: "",
+    experiencePhotoFileName: "",
     // Mechanic
     workshopExperience: "",
     technicalCertFileName: "",
@@ -177,6 +219,8 @@ export function CreateProfile() {
     // Builder
     companyName: "",
     businessRegFileName: "",
+    dailyWageRate: "",
+    gender: "",
   });
 
   const [savedProfile, setSavedProfile] = useState<Worker | null>(null);
@@ -184,16 +228,67 @@ export function CreateProfile() {
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [justSaved, setJustSaved] = useState<Worker | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [myStatusOverride, setMyStatusOverride] =
+    useState<AvailabilityStatus | null>(null);
   const { mutateAsync, isPending } = useCreateWorker();
 
   useEffect(() => {
     const existing = loadSavedProfile();
     if (existing) setSavedProfile(existing);
+    const ext = getMyExtendedProfile();
+    if (ext) setMyStatusOverride(ext.availability);
   }, []);
 
   const docGroup = form.category
     ? (PROFESSION_DOC_GROUPS[form.category] ?? "general")
     : null;
+
+  const needsLicence =
+    docGroup === "driver" ||
+    docGroup === "machine_operator" ||
+    ["JCB Operator", "Crane Operator"].includes(form.category);
+
+  const needsExpPhoto = ["Electrician", "Welder", "Mechanic"].includes(
+    form.category,
+  );
+
+  const isVerified =
+    !!form.aadhaarFileName &&
+    !!form.profilePhotoName &&
+    (needsLicence
+      ? !!form.drivingLicenceFileName || !!form.operatorCertFileName
+      : true);
+
+  const citiesForState = form.state
+    ? (INDIA_STATES_CITIES[form.state] ?? [])
+    : [];
+
+  const handleGpsDetect = () => {
+    if (!navigator.geolocation) {
+      toast.error("GPS aapke browser mein support nahi hai");
+      return;
+    }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setForm((p) => ({
+          ...p,
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          location:
+            p.location ||
+            `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`,
+        }));
+        setGpsLoading(false);
+        toast.success("📍 GPS Location detect ho gaya!");
+      },
+      () => {
+        setGpsLoading(false);
+        toast.error("Location access denied. Settings mein allow karo.");
+      },
+    );
+  };
 
   const handleSendOtp = () => {
     if (!form.phone || form.phone.length < 10) {
@@ -219,10 +314,20 @@ export function CreateProfile() {
       !form.name ||
       !form.category ||
       !form.experience ||
-      !form.location ||
       !form.expectedSalary
     ) {
-      toast.error("Sab fields bharo");
+      toast.error("Sab required fields bharo");
+      return;
+    }
+
+    const locationStr =
+      form.state && form.city
+        ? `${form.city}, ${form.state}`
+        : form.location ||
+          (form.lat ? `${form.lat.toFixed(4)}, ${form.lng.toFixed(4)}` : "");
+
+    if (!locationStr) {
+      toast.error("Location daalo ya GPS use karo");
       return;
     }
 
@@ -231,7 +336,13 @@ export function CreateProfile() {
       let savedWorker: Worker | null = null;
       if (actor) {
         try {
-          savedWorker = await mutateAsync(form);
+          savedWorker = await mutateAsync({
+            name: form.name,
+            category: form.category,
+            experience: form.experience,
+            location: locationStr,
+            expectedSalary: form.expectedSalary,
+          });
         } catch {
           // Backend unavailable - continue with local + sheets save
         }
@@ -243,27 +354,51 @@ export function CreateProfile() {
           name: form.name,
           category: form.category,
           experience: form.experience,
-          location: form.location,
+          location: locationStr,
           expectedSalary: form.expectedSalary,
-          phone: form.phone ? [form.phone] : [],
+          blocked: false,
+          approved: true,
           createdAt: BigInt(Date.now()),
-          isActive: true,
-          latitude: [],
-          longitude: [],
-        } as unknown as Worker;
+        } as Worker;
       }
 
+      const extData = {
+        mobile: form.phone,
+        whatsapp: form.whatsapp || undefined,
+        state: form.state || undefined,
+        city: form.city || undefined,
+        availability: form.availability,
+        workType: form.workType,
+        dailyWageRate: form.dailyWageRate || undefined,
+        gender: form.gender || undefined,
+        profilePhotoName: form.profilePhotoName || undefined,
+        aadhaarUploaded: !!form.aadhaarFileName,
+        licenceUploaded:
+          !!form.drivingLicenceFileName || !!form.operatorCertFileName,
+        experiencePhotoUploaded: !!form.experiencePhotoFileName,
+        lat: form.lat || undefined,
+        lng: form.lng || undefined,
+        lastUpdated: Date.now(),
+      };
+
+      saveMyExtendedProfile(extData);
+      saveExtendedById(savedWorker.id.toString(), extData);
       saveProfile(savedWorker);
+
       sendToGoogleSheets({
         name: form.name,
         mobile: form.phone,
         category: form.category,
         experience: form.experience,
-        location: form.location,
+        location: locationStr,
         salary: form.expectedSalary,
+        whatsapp: form.whatsapp,
+        availability: form.availability,
+        workType: form.workType,
       });
 
       setJustSaved(savedWorker);
+      setMyStatusOverride(form.availability);
       setSuccessDialogOpen(true);
     } catch {
       toast.error("Kuch galat ho gaya. Dobara try karo.");
@@ -274,13 +409,78 @@ export function CreateProfile() {
 
   const handleSuccessDialogClose = () => {
     setSuccessDialogOpen(false);
-    if (justSaved) {
-      setSavedProfile(justSaved);
+    const saved = justSaved;
+    if (saved) {
+      setSavedProfile(saved);
       setJustSaved(null);
       setShowForm(false);
+      navigate({
+        to: "/payment",
+        search: {
+          workerId: saved.id.toString(),
+          workerName: saved.name,
+          category: saved.category,
+          feeAmount: String(getCategoryFee(saved.category)),
+          mobile: form.phone,
+        },
+      });
+    } else {
+      navigate({ to: "/find-worker" });
     }
-    navigate({ to: "/find-worker" });
   };
+
+  const handleStatusUpdate = (newStatus: AvailabilityStatus) => {
+    setMyStatusOverride(newStatus);
+    const ext = getMyExtendedProfile();
+    if (ext) {
+      saveMyExtendedProfile({
+        ...ext,
+        availability: newStatus,
+        lastUpdated: Date.now(),
+      });
+    }
+    toast.success(
+      newStatus === "available"
+        ? "🟢 Status: Available set ho gaya!"
+        : "🔴 Status: Busy set ho gaya!",
+    );
+  };
+
+  const resetFormState = (prefill?: Partial<typeof form>) => ({
+    name: "",
+    category: "",
+    experience: "",
+    location: "",
+    expectedSalary: "",
+    phone: "",
+    whatsapp: "",
+    state: "",
+    city: "",
+    lat: 0,
+    lng: 0,
+    availability: "available" as AvailabilityStatus,
+    workType: "daily" as WorkType,
+    otpSent: false,
+    otpValue: "",
+    otpVerified: false,
+    demoOtp: "",
+    aadhaarFileName: "",
+    profilePhotoName: "",
+    drivingLicenceFileName: "",
+    vehicleType: "",
+    operatorCertFileName: "",
+    skillCertFileName: "",
+    experiencePhotoFileName: "",
+    workshopExperience: "",
+    technicalCertFileName: "",
+    educationCertFileName: "",
+    resumeFileName: "",
+    companyName: "",
+    businessRegFileName: "",
+    dailyWageRate: "",
+    gender: "",
+    ...prefill,
+  });
 
   // ─── SUCCESS DIALOG ──────────────────────────────────────────────
   const SuccessDialog = (
@@ -343,21 +543,33 @@ export function CreateProfile() {
 
   // ─── EXISTING PROFILE VIEW ──────────────────────────────────────
   if (savedProfile && !showForm) {
+    const currentStatus = myStatusOverride ?? "available";
+    const ext = getMyExtendedProfile();
+    const hasTrustBadge = ext
+      ? ext.aadhaarUploaded && ext.profilePhotoName && ext.licenceUploaded
+      : false;
+
     return (
-      <div className="page-container pt-8">
+      <div className="page-container pt-6">
         {SuccessDialog}
+
         <div
           data-ocid="create_profile.success_state"
           className="card-elevated overflow-hidden mb-4 animate-slide-up"
         >
-          <div className="bg-green-600 text-white px-5 py-4 flex items-center gap-3">
+          <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-5 py-4 flex items-center gap-3">
             <CheckCircle2 className="w-6 h-6 shrink-0" />
-            <div>
+            <div className="flex-1">
               <p className="font-bold text-base">Profile Ban Gayi! ✅</p>
               <p className="text-xs opacity-85">
                 Aap logged in hain · Database mein saved
               </p>
             </div>
+            {hasTrustBadge && (
+              <span className="bg-white/20 text-white text-xs font-bold px-2 py-1 rounded-full">
+                ✅ Verified
+              </span>
+            )}
           </div>
 
           <div className="p-5">
@@ -365,7 +577,7 @@ export function CreateProfile() {
               <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
                 <UserCircle2 className="w-8 h-8 text-primary" />
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="font-display font-black text-lg">
                   {savedProfile.name}
                 </p>
@@ -373,10 +585,24 @@ export function CreateProfile() {
                   {CATEGORY_EMOJIS[savedProfile.category]}{" "}
                   {savedProfile.category}
                 </p>
+                {hasTrustBadge && (
+                  <span className="text-xs text-green-700 font-semibold">
+                    ✅ Verified Worker
+                  </span>
+                )}
               </div>
+              <span
+                className={`text-xs font-bold px-3 py-1 rounded-full ${
+                  currentStatus === "available"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-red-100 text-red-700"
+                }`}
+              >
+                {currentStatus === "available" ? "🟢 Available" : "🔴 Busy"}
+              </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 mb-4">
               {(
                 [
                   { label: "Experience", value: savedProfile.experience },
@@ -400,7 +626,40 @@ export function CreateProfile() {
               ))}
             </div>
 
-            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+            {/* Status Toggle */}
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4">
+              <p className="text-xs font-bold text-orange-800 mb-3">
+                🔄 Apna Work Status Update Karo
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  data-ocid="create_profile.available_toggle"
+                  size="sm"
+                  className={`flex-1 h-10 text-sm font-semibold ${
+                    currentStatus === "available"
+                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      : "bg-white border border-green-300 text-green-700 hover:bg-green-50"
+                  }`}
+                  onClick={() => handleStatusUpdate("available")}
+                >
+                  🟢 Available
+                </Button>
+                <Button
+                  data-ocid="create_profile.busy_toggle"
+                  size="sm"
+                  className={`flex-1 h-10 text-sm font-semibold ${
+                    currentStatus === "busy"
+                      ? "bg-red-600 hover:bg-red-700 text-white"
+                      : "bg-white border border-red-300 text-red-700 hover:bg-red-50"
+                  }`}
+                  onClick={() => handleStatusUpdate("busy")}
+                >
+                  🔴 Busy
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-1 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
               <p className="text-xs text-blue-700">
                 ✅ Aapka profile database mein save hai. Contractors aapko dekh
                 sakte hain.
@@ -422,30 +681,15 @@ export function CreateProfile() {
             variant="outline"
             className="touch-btn w-full"
             onClick={() => {
-              setForm({
-                name: savedProfile.name,
-                category: savedProfile.category,
-                experience: savedProfile.experience,
-                location: savedProfile.location,
-                expectedSalary: savedProfile.expectedSalary,
-                phone: "",
-                otpSent: false,
-                otpValue: "",
-                otpVerified: false,
-                demoOtp: "",
-                aadhaarFileName: "",
-                profilePhotoName: "",
-                drivingLicenceFileName: "",
-                vehicleType: "",
-                operatorCertFileName: "",
-                skillCertFileName: "",
-                workshopExperience: "",
-                technicalCertFileName: "",
-                educationCertFileName: "",
-                resumeFileName: "",
-                companyName: "",
-                businessRegFileName: "",
-              });
+              setForm(
+                resetFormState({
+                  name: savedProfile.name,
+                  category: savedProfile.category,
+                  experience: savedProfile.experience,
+                  location: savedProfile.location,
+                  expectedSalary: savedProfile.expectedSalary,
+                }),
+              );
               setShowForm(true);
             }}
           >
@@ -456,30 +700,7 @@ export function CreateProfile() {
             variant="ghost"
             className="touch-btn w-full text-muted-foreground"
             onClick={() => {
-              setForm({
-                name: "",
-                category: "",
-                experience: "",
-                location: "",
-                expectedSalary: "",
-                phone: "",
-                otpSent: false,
-                otpValue: "",
-                otpVerified: false,
-                demoOtp: "",
-                aadhaarFileName: "",
-                profilePhotoName: "",
-                drivingLicenceFileName: "",
-                vehicleType: "",
-                operatorCertFileName: "",
-                skillCertFileName: "",
-                workshopExperience: "",
-                technicalCertFileName: "",
-                educationCertFileName: "",
-                resumeFileName: "",
-                companyName: "",
-                businessRegFileName: "",
-              });
+              setForm(resetFormState());
               setShowForm(true);
             }}
           >
@@ -497,110 +718,365 @@ export function CreateProfile() {
       <h1 className="text-2xl font-display font-black mb-1">
         Worker Profile Banao
       </h1>
-      <p className="text-sm text-muted-foreground mb-6">
+      <p className="text-sm text-muted-foreground mb-5">
         Apni details do, contractors milenge
       </p>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Basic Info */}
-        <div className="space-y-1.5">
-          <Label htmlFor="name">Apna Naam *</Label>
-          <Input
-            data-ocid="create_profile.name_input"
-            id="name"
-            placeholder="Eg: Ramesh Kumar"
-            value={form.name}
-            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-            className="h-12"
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {/* ── SECTION 1: BASIC DETAILS ───────────────────────────── */}
+        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 space-y-4">
+          <SectionHeader
+            emoji="👤"
+            title="Basic Details"
+            subtitle="Naam, mobile, category"
           />
-        </div>
 
-        {/* Phone field moved before OTP section */}
-        <div className="space-y-1.5">
-          <Label htmlFor="phone">Mobile Number *</Label>
-          <Input
-            data-ocid="create_profile.phone_input"
-            id="phone"
-            type="tel"
-            placeholder="Contractors contact kar sakein"
-            value={form.phone}
-            onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-            className="h-12"
-          />
-        </div>
-
-        {/* ── BASE VERIFICATION CARD ─────────────────────────────── */}
-        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-4">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-lg">🔐</span>
-            <p className="font-semibold text-orange-900 text-sm">
-              Base Verification (Sabke liye Required)
-            </p>
+          <div className="space-y-1.5">
+            <Label htmlFor="name">Apna Naam *</Label>
+            <Input
+              data-ocid="create_profile.name_input"
+              id="name"
+              placeholder="Eg: Ramesh Kumar"
+              value={form.name}
+              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+              className="h-12"
+            />
           </div>
 
-          {/* OTP Verification */}
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-orange-800">
-              Mobile OTP Verification *
-            </Label>
+          {/* Gender */}
+          <div className="space-y-1.5">
+            <Label htmlFor="gender">Gender *</Label>
+            <Select
+              value={form.gender}
+              onValueChange={(v) => setForm((p) => ({ ...p, gender: v }))}
+            >
+              <SelectTrigger
+                data-ocid="create_profile.gender_select"
+                className="h-12"
+              >
+                <SelectValue placeholder="Gender chunein" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Male">👨 Male (Purush)</SelectItem>
+                <SelectItem value="Female">👩 Female (Mahila)</SelectItem>
+                <SelectItem value="Other">⚧ Other (Anya)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Female Safety Tips */}
+          {form.gender === "Female" && (
+            <div
+              data-ocid="create_profile.female_safety_tips"
+              className="bg-pink-50 border border-pink-200 rounded-xl p-3 mt-2"
+            >
+              <p className="text-xs font-bold text-pink-800 mb-1.5">
+                🛡️ Mahila Worker Safety Tips
+              </p>
+              <ul className="text-xs text-pink-700 space-y-1">
+                <li>
+                  • Aapka mobile number sirf verified contractors ko dikhega
+                </li>
+                <li>
+                  • Profile admin dwara review hogi activate hone se pehle
+                </li>
+                <li>• Kisi bhi problem ke liye Report button use karein</li>
+                <li>
+                  • OTP verification zaroori hai profile activate karne ke liye
+                </li>
+              </ul>
+            </div>
+          )}
+
+          {/* Phone + OTP */}
+          <div className="space-y-1.5">
+            <Label htmlFor="phone">Mobile Number *</Label>
             <div className="flex gap-2">
+              <Input
+                data-ocid="create_profile.phone_input"
+                id="phone"
+                type="tel"
+                placeholder="10 digit mobile number"
+                value={form.phone}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, phone: e.target.value }))
+                }
+                className="h-12 flex-1"
+                maxLength={10}
+              />
               <Button
+                data-ocid="create_profile.send_otp_button"
                 type="button"
-                size="sm"
-                className="h-10 px-4 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold shrink-0"
+                variant="outline"
+                className="h-12 px-3 shrink-0 border-orange-300 text-orange-700"
                 onClick={handleSendOtp}
                 disabled={form.otpVerified}
-                data-ocid="create_profile.otp_send_button"
               >
-                {form.otpVerified
-                  ? "✓ Verified"
-                  : form.otpSent
-                    ? "Resend"
-                    : "OTP Bhejo"}
+                {form.otpVerified ? "✓ Verified" : "OTP Bhejo"}
               </Button>
-              {form.otpVerified && (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-3 py-2 rounded-lg">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Verified
-                </span>
-              )}
             </div>
-
             {form.otpSent && !form.otpVerified && (
-              <>
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 text-xs text-yellow-800">
-                  📱 Demo OTP: <strong>{form.demoOtp}</strong>{" "}
-                  <span className="opacity-60">
-                    (Real SMS ke liye paid plan chahiye)
-                  </span>
+              <div className="mt-2 space-y-2">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-2">
+                  <p className="text-xs text-amber-800 font-semibold">
+                    Demo OTP: {form.demoOtp}
+                  </p>
                 </div>
                 <div className="flex gap-2">
                   <Input
                     data-ocid="create_profile.otp_input"
-                    placeholder="6-digit OTP dalo"
-                    maxLength={6}
+                    placeholder="OTP dalo"
                     value={form.otpValue}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, otpValue: e.target.value }))
                     }
-                    className="h-10 text-center tracking-widest font-mono text-base"
+                    className="h-11"
+                    maxLength={6}
                   />
                   <Button
+                    data-ocid="create_profile.verify_otp_button"
                     type="button"
-                    size="sm"
-                    className="h-10 px-4 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold shrink-0"
+                    className="h-11 px-3"
                     onClick={handleVerifyOtp}
-                    data-ocid="create_profile.otp_verify_button"
                   >
                     Verify
                   </Button>
                 </div>
-              </>
+              </div>
             )}
           </div>
 
+          {/* WhatsApp */}
+          <div className="space-y-1.5">
+            <Label htmlFor="whatsapp">
+              WhatsApp Number{" "}
+              <span className="text-muted-foreground font-normal text-xs">
+                (Optional)
+              </span>
+            </Label>
+            <Input
+              data-ocid="create_profile.whatsapp_input"
+              id="whatsapp"
+              type="tel"
+              placeholder="WhatsApp number (if different)"
+              value={form.whatsapp}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, whatsapp: e.target.value }))
+              }
+              className="h-12"
+              maxLength={10}
+            />
+          </div>
+
+          {/* Category */}
+          <div className="space-y-1.5">
+            <Label htmlFor="category">Category *</Label>
+            <Select
+              value={form.category}
+              onValueChange={(v) => setForm((p) => ({ ...p, category: v }))}
+            >
+              <SelectTrigger
+                data-ocid="create_profile.category_select"
+                id="category"
+                className="touch-btn h-12"
+              >
+                <SelectValue placeholder="Apna kaam chunein" />
+              </SelectTrigger>
+              <SelectContent>
+                {MAIN_CATEGORIES.map((group) => (
+                  <SelectGroup key={group.id}>
+                    <SelectLabel>
+                      {group.emoji} {group.name}
+                    </SelectLabel>
+                    {group.subcategories.map((sub) => (
+                      <SelectItem key={sub} value={sub}>
+                        {CATEGORY_EMOJIS[sub] || "👷"} {sub}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <p
+            data-ocid="create_profile.inclusive_note"
+            className="text-xs text-muted-foreground mt-1"
+          >
+            ✅ Sabhi categories sabhi genders ke liye open hain — KaamMitra mein
+            sab barabar hain
+          </p>
+
+          {form.category && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <IndianRupee className="w-4 h-4 text-amber-600" />
+                <span className="text-sm font-semibold text-amber-800">
+                  Registration Fee
+                </span>
+              </div>
+              <span className="text-lg font-bold text-amber-700">
+                20b9{getCategoryFee(form.category)}
+              </span>
+            </div>
+          )}
+          {/* Experience */}
+          <div className="space-y-1.5">
+            <Label htmlFor="experience">Experience *</Label>
+            <Input
+              data-ocid="create_profile.experience_input"
+              id="experience"
+              placeholder="Eg: 5 saal, 3 years"
+              value={form.experience}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, experience: e.target.value }))
+              }
+              className="h-12"
+            />
+          </div>
+
+          {/* Expected Salary */}
+          <div className="space-y-1.5">
+            <Label htmlFor="salary">Expected Salary *</Label>
+            <Input
+              data-ocid="create_profile.salary_input"
+              id="salary"
+              placeholder="Eg: ₹500/day, ₹18000/month"
+              value={form.expectedSalary}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, expectedSalary: e.target.value }))
+              }
+              className="h-12"
+            />
+          </div>
+        </div>
+
+        {/* ── SECTION 2: LOCATION ─────────────────────────────────── */}
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-4">
+          <SectionHeader
+            emoji="📍"
+            title="Location"
+            subtitle="State, city ya GPS se location"
+          />
+
+          {/* State */}
+          <div className="space-y-1.5">
+            <Label>State *</Label>
+            <Select
+              value={form.state}
+              onValueChange={(v) =>
+                setForm((p) => ({ ...p, state: v, city: "" }))
+              }
+            >
+              <SelectTrigger
+                data-ocid="create_profile.state_select"
+                className="h-12"
+              >
+                <SelectValue placeholder="State chunein" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.keys(INDIA_STATES_CITIES).map((st) => (
+                  <SelectItem key={st} value={st}>
+                    {st}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* City */}
+          <div className="space-y-1.5">
+            <Label>City *</Label>
+            <Select
+              value={form.city}
+              onValueChange={(v) =>
+                setForm((p) => ({
+                  ...p,
+                  city: v,
+                  location: `${v}, ${p.state}`,
+                }))
+              }
+              disabled={!form.state}
+            >
+              <SelectTrigger
+                data-ocid="create_profile.city_select"
+                className="h-12"
+              >
+                <SelectValue
+                  placeholder={
+                    form.state ? "City chunein" : "Pehle state chunein"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {citiesForState.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* GPS Button */}
+          <Button
+            data-ocid="create_profile.gps_button"
+            type="button"
+            variant="outline"
+            className="w-full h-11 border-blue-300 text-blue-700 hover:bg-blue-100"
+            onClick={handleGpsDetect}
+            disabled={gpsLoading}
+          >
+            {gpsLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" /> GPS Detect Ho
+                Raha Hai...
+              </>
+            ) : (
+              <>
+                <Navigation className="w-4 h-4 mr-2" /> GPS Auto Location Lo 📍
+              </>
+            )}
+          </Button>
+          {form.lat !== 0 && (
+            <p className="text-xs text-blue-600 font-medium flex items-center gap-1">
+              <MapPin className="w-3 h-3" /> GPS: {form.lat.toFixed(4)},{" "}
+              {form.lng.toFixed(4)}
+            </p>
+          )}
+          {form.location && (
+            <p className="text-xs text-green-600 font-medium">
+              📍 Location: {form.location}
+            </p>
+          )}
+        </div>
+
+        {/* ── SECTION 3: VERIFICATION ─────────────────────────────── */}
+        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 space-y-4">
+          <SectionHeader
+            emoji="🪪"
+            title="Verification"
+            subtitle="Documents upload karo"
+          />
+
+          {/* Trust Badge Preview */}
+          {isVerified && (
+            <div className="bg-green-100 border border-green-300 rounded-xl px-4 py-3 flex items-center gap-2">
+              <span className="text-lg">✅</span>
+              <div>
+                <p className="text-sm font-bold text-green-800">
+                  Verified Worker Badge Milega!
+                </p>
+                <p className="text-xs text-green-600">
+                  Sab required documents upload ho gaye hain
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Aadhaar Upload */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-orange-800">
+            <Label className="text-xs font-medium text-purple-800">
               Aadhaar Card Upload *
             </Label>
             <FileUploadField
@@ -617,7 +1093,7 @@ export function CreateProfile() {
 
           {/* Profile Photo */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-orange-800">
+            <Label className="text-xs font-medium text-purple-800">
               Profile Photo *
             </Label>
             <FileUploadField
@@ -631,114 +1107,74 @@ export function CreateProfile() {
               uploadOcid="create_profile.profile_photo_upload_button"
             />
           </div>
-        </div>
 
-        {/* Category */}
-        <div className="space-y-1.5">
-          <Label htmlFor="category">Category *</Label>
-          <Select
-            value={form.category}
-            onValueChange={(v) => setForm((p) => ({ ...p, category: v }))}
-          >
-            <SelectTrigger
-              data-ocid="create_profile.category_select"
-              id="category"
-              className="touch-btn h-12"
-            >
-              <SelectValue placeholder="Apna kaam chunein" />
-            </SelectTrigger>
-            <SelectContent>
-              {MAIN_CATEGORIES.map((group) => (
-                <SelectGroup key={group.id}>
-                  <SelectLabel>
-                    {group.emoji} {group.name}
-                  </SelectLabel>
-                  {group.subcategories.map((sub) => (
-                    <SelectItem key={sub} value={sub}>
-                      {CATEGORY_EMOJIS[sub] || "👷"} {sub}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* ── PROFESSION DOCUMENTS CARD (shown after category selected) ── */}
-        {form.category && docGroup && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-4">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-lg">📋</span>
-              <p className="font-semibold text-blue-900 text-sm">
-                {form.category} ke liye Documents
+          {/* Profession-specific documents */}
+          {form.category && docGroup && (
+            <div className="bg-white border border-purple-200 rounded-xl p-3 space-y-4">
+              <p className="text-xs font-semibold text-purple-900">
+                📋 {form.category} ke liye Additional Documents
               </p>
-            </div>
 
-            {/* DRIVER */}
-            {docGroup === "driver" && (
-              <>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-blue-800">
-                    Driving Licence Upload *
-                  </Label>
-                  <FileUploadField
-                    id="driving-licence-upload"
-                    label="Driving Licence Upload Karo"
-                    fileName={form.drivingLicenceFileName}
-                    onChange={(name) =>
-                      setForm((p) => ({ ...p, drivingLicenceFileName: name }))
-                    }
-                    required
-                    uploadOcid="create_profile.driving_licence_upload_button"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="vehicle-type"
-                    className="text-xs font-medium text-blue-800"
-                  >
-                    Vehicle Type *
-                  </Label>
-                  <Select
-                    value={form.vehicleType}
-                    onValueChange={(v) =>
-                      setForm((p) => ({ ...p, vehicleType: v }))
-                    }
-                  >
-                    <SelectTrigger
-                      id="vehicle-type"
-                      className="h-11"
-                      data-ocid="create_profile.vehicle_type_select"
+              {/* DRIVER */}
+              {docGroup === "driver" && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">
+                      Driving Licence Upload *
+                    </Label>
+                    <FileUploadField
+                      id="driving-licence-upload"
+                      label="Driving Licence Upload Karo"
+                      fileName={form.drivingLicenceFileName}
+                      onChange={(name) =>
+                        setForm((p) => ({ ...p, drivingLicenceFileName: name }))
+                      }
+                      required
+                      uploadOcid="create_profile.driving_licence_upload_button"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">
+                      Vehicle Type *
+                    </Label>
+                    <Select
+                      value={form.vehicleType}
+                      onValueChange={(v) =>
+                        setForm((p) => ({ ...p, vehicleType: v }))
+                      }
                     >
-                      <SelectValue placeholder="Vehicle chunein" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[
-                        "Car",
-                        "Bolero",
-                        "Pickup",
-                        "Truck",
-                        "Tipper",
-                        "Trailer",
-                        "Dumper",
-                        "Tractor",
-                        "Bus",
-                      ].map((v) => (
-                        <SelectItem key={v} value={v}>
-                          {v}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </>
-            )}
+                      <SelectTrigger
+                        className="h-11"
+                        data-ocid="create_profile.vehicle_type_select"
+                      >
+                        <SelectValue placeholder="Vehicle chunein" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[
+                          "Car",
+                          "Bolero",
+                          "Pickup",
+                          "Truck",
+                          "Tipper",
+                          "Trailer",
+                          "Dumper",
+                          "Tractor",
+                          "Bus",
+                        ].map((v) => (
+                          <SelectItem key={v} value={v}>
+                            {v}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
 
-            {/* MACHINE OPERATOR */}
-            {docGroup === "machine_operator" && (
-              <>
+              {/* MACHINE OPERATOR */}
+              {docGroup === "machine_operator" && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-blue-800">
+                  <Label className="text-xs font-medium">
                     Operator Licence / Certificate *
                   </Label>
                   <FileUploadField
@@ -752,48 +1188,33 @@ export function CreateProfile() {
                     uploadOcid="create_profile.operator_cert_upload_button"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="experience"
-                    className="text-xs font-medium text-blue-800"
-                  >
-                    Machine Experience Details *
-                  </Label>
-                  <Input
-                    id="experience-operator"
-                    placeholder="Eg: 3 saal JCB chalaya hai"
-                    value={form.experience}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, experience: e.target.value }))
-                    }
-                    className="h-11"
-                  />
-                </div>
-              </>
-            )}
+              )}
 
-            {/* CONSTRUCTION */}
-            {docGroup === "construction" && (
-              <>
+              {/* CONSTRUCTION - Experience photo for Electrician/Welder/Mechanic */}
+              {needsExpPhoto && (
                 <div className="space-y-1.5">
-                  <Label
-                    htmlFor="work-experience"
-                    className="text-xs font-medium text-blue-800"
-                  >
-                    Work Experience *
+                  <Label className="text-xs font-medium">
+                    Experience Photo{" "}
+                    <span className="text-muted-foreground font-normal">
+                      (Optional)
+                    </span>
                   </Label>
-                  <Input
-                    id="work-experience"
-                    placeholder="Eg: 4 saal masonry kaam"
-                    value={form.experience}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, experience: e.target.value }))
+                  <FileUploadField
+                    id="exp-photo-upload"
+                    label="Experience Photo Upload Karo"
+                    fileName={form.experiencePhotoFileName}
+                    onChange={(name) =>
+                      setForm((p) => ({ ...p, experiencePhotoFileName: name }))
                     }
-                    className="h-11"
+                    uploadOcid="create_profile.experience_photo_upload_button"
                   />
                 </div>
+              )}
+
+              {/* CONSTRUCTION other */}
+              {docGroup === "construction" && !needsExpPhoto && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-blue-800">
+                  <Label className="text-xs font-medium">
                     Skill Certificate{" "}
                     <span className="text-muted-foreground font-normal">
                       (Optional)
@@ -809,197 +1230,233 @@ export function CreateProfile() {
                     uploadOcid="create_profile.skill_cert_upload_button"
                   />
                 </div>
-              </>
-            )}
+              )}
 
-            {/* HELPER */}
-            {docGroup === "helper" && (
-              <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3">
-                <p className="text-sm text-green-800 font-medium">
-                  ✓ Mobile Verification hi kaafi hai
-                </p>
-                <p className="text-xs text-green-600 mt-1">
-                  Helper / Labour ke liye koi extra documents nahi chahiye.
-                </p>
-              </div>
-            )}
+              {/* HELPER */}
+              {docGroup === "helper" && (
+                <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+                  <p className="text-sm text-green-800 font-medium">
+                    ✓ Mobile Verification hi kaafi hai
+                  </p>
+                  <p className="text-xs text-green-600 mt-1">
+                    Helper / Labour ke liye koi extra documents nahi chahiye.
+                  </p>
+                </div>
+              )}
 
-            {/* MECHANIC */}
-            {docGroup === "mechanic" && (
-              <>
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="workshop-exp"
-                    className="text-xs font-medium text-blue-800"
-                  >
-                    Workshop Experience *
-                  </Label>
-                  <Input
-                    data-ocid="create_profile.workshop_experience_input"
-                    id="workshop-exp"
-                    placeholder="Eg: 5 saal auto workshop mein kaam kiya"
-                    value={form.workshopExperience}
-                    onChange={(e) =>
-                      setForm((p) => ({
-                        ...p,
-                        workshopExperience: e.target.value,
-                      }))
-                    }
-                    className="h-11"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-blue-800">
-                    Technical Certificate{" "}
-                    <span className="text-muted-foreground font-normal">
-                      (Optional)
-                    </span>
-                  </Label>
-                  <FileUploadField
-                    id="technical-cert-upload"
-                    label="Technical Certificate Upload Karo"
-                    fileName={form.technicalCertFileName}
-                    onChange={(name) =>
-                      setForm((p) => ({ ...p, technicalCertFileName: name }))
-                    }
-                  />
-                </div>
-              </>
-            )}
+              {/* MECHANIC */}
+              {docGroup === "mechanic" && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">
+                      Workshop Experience *
+                    </Label>
+                    <Input
+                      data-ocid="create_profile.workshop_experience_input"
+                      placeholder="Eg: 5 saal auto workshop mein kaam kiya"
+                      value={form.workshopExperience}
+                      onChange={(e) =>
+                        setForm((p) => ({
+                          ...p,
+                          workshopExperience: e.target.value,
+                        }))
+                      }
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">
+                      Technical Certificate{" "}
+                      <span className="text-muted-foreground font-normal">
+                        (Optional)
+                      </span>
+                    </Label>
+                    <FileUploadField
+                      id="technical-cert-upload"
+                      label="Technical Certificate Upload Karo"
+                      fileName={form.technicalCertFileName}
+                      onChange={(name) =>
+                        setForm((p) => ({ ...p, technicalCertFileName: name }))
+                      }
+                    />
+                  </div>
+                </>
+              )}
 
-            {/* OFFICE STAFF */}
-            {docGroup === "office_staff" && (
-              <>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-blue-800">
-                    Education Certificate *
-                  </Label>
-                  <FileUploadField
-                    id="education-cert-upload"
-                    label="Education Certificate Upload Karo"
-                    fileName={form.educationCertFileName}
-                    onChange={(name) =>
-                      setForm((p) => ({ ...p, educationCertFileName: name }))
-                    }
-                    required
-                    uploadOcid="create_profile.education_cert_upload_button"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-blue-800">
-                    Resume Upload *
-                  </Label>
-                  <FileUploadField
-                    id="resume-upload"
-                    label="Resume Upload Karo"
-                    fileName={form.resumeFileName}
-                    onChange={(name) =>
-                      setForm((p) => ({ ...p, resumeFileName: name }))
-                    }
-                    required
-                    uploadOcid="create_profile.resume_upload_button"
-                  />
-                </div>
-              </>
-            )}
+              {/* OFFICE STAFF */}
+              {docGroup === "office_staff" && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">
+                      Education Certificate *
+                    </Label>
+                    <FileUploadField
+                      id="education-cert-upload"
+                      label="Education Certificate Upload Karo"
+                      fileName={form.educationCertFileName}
+                      onChange={(name) =>
+                        setForm((p) => ({ ...p, educationCertFileName: name }))
+                      }
+                      required
+                      uploadOcid="create_profile.education_cert_upload_button"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">
+                      Resume Upload *
+                    </Label>
+                    <FileUploadField
+                      id="resume-upload"
+                      label="Resume Upload Karo"
+                      fileName={form.resumeFileName}
+                      onChange={(name) =>
+                        setForm((p) => ({ ...p, resumeFileName: name }))
+                      }
+                      required
+                      uploadOcid="create_profile.resume_upload_button"
+                    />
+                  </div>
+                </>
+              )}
 
-            {/* BUILDER */}
-            {docGroup === "builder" && (
-              <>
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="company-name"
-                    className="text-xs font-medium text-blue-800"
-                  >
-                    Company Name *
-                  </Label>
-                  <Input
-                    data-ocid="create_profile.company_name_input"
-                    id="company-name"
-                    placeholder="Eg: Sharma Construction Pvt. Ltd."
-                    value={form.companyName}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, companyName: e.target.value }))
-                    }
-                    className="h-11"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-blue-800">
-                    Business Registration / GST{" "}
-                    <span className="text-muted-foreground font-normal">
-                      (Optional)
-                    </span>
-                  </Label>
-                  <FileUploadField
-                    id="business-reg-upload"
-                    label="Business Reg / GST Upload Karo"
-                    fileName={form.businessRegFileName}
-                    onChange={(name) =>
-                      setForm((p) => ({ ...p, businessRegFileName: name }))
-                    }
-                    uploadOcid="create_profile.business_reg_upload_button"
-                  />
-                </div>
-              </>
-            )}
+              {/* BUILDER */}
+              {docGroup === "builder" && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">
+                      Company Name *
+                    </Label>
+                    <Input
+                      data-ocid="create_profile.company_name_input"
+                      placeholder="Eg: Sharma Construction Pvt. Ltd."
+                      value={form.companyName}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, companyName: e.target.value }))
+                      }
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">
+                      Business Registration / GST{" "}
+                      <span className="text-muted-foreground font-normal">
+                        (Optional)
+                      </span>
+                    </Label>
+                    <FileUploadField
+                      id="business-reg-upload"
+                      label="Business Reg / GST Upload Karo"
+                      fileName={form.businessRegFileName}
+                      onChange={(name) =>
+                        setForm((p) => ({ ...p, businessRegFileName: name }))
+                      }
+                      uploadOcid="create_profile.business_reg_upload_button"
+                    />
+                  </div>
+                </>
+              )}
 
-            {/* GENERAL */}
-            {docGroup === "general" && (
-              <div className="bg-blue-100 border border-blue-200 rounded-lg px-4 py-3">
-                <p className="text-sm text-blue-800 font-medium">
-                  ✓ Base verification documents kaafi hain
-                </p>
-                <p className="text-xs text-blue-600 mt-1">
-                  Is category ke liye koi additional documents required nahi
-                  hain.
-                </p>
-              </div>
-            )}
+              {/* GENERAL */}
+              {docGroup === "general" && (
+                <div className="bg-blue-100 border border-blue-200 rounded-lg px-4 py-3">
+                  <p className="text-sm text-blue-800 font-medium">
+                    ✓ Base verification documents kaafi hain
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── SECTION 4: WORK & AVAILABILITY ─────────────────────── */}
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 space-y-4">
+          <SectionHeader
+            emoji="💼"
+            title="Work & Availability"
+            subtitle="Work type aur availability set karo"
+          />
+
+          {/* Daily Wage Rate */}
+          <div className="space-y-2">
+            <Label htmlFor="daily-wage-rate">Daily Wage Rate (₹/day)</Label>
+            <input
+              id="daily-wage-rate"
+              data-ocid="create_profile.daily_wage_input"
+              type="number"
+              min="0"
+              placeholder="e.g. 1200"
+              value={form.dailyWageRate}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, dailyWageRate: e.target.value }))
+              }
+              className="w-full h-11 px-3 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <p className="text-xs text-muted-foreground">
+              💡 JCB Operator: ₹1200/day • Driver: ₹900/day • Helper: ₹500/day
+            </p>
           </div>
-        )}
 
-        {/* ── REMAINING FIELDS ───────────────────────────────────── */}
-        <div className="space-y-1.5">
-          <Label htmlFor="experience">Experience *</Label>
-          <Input
-            data-ocid="create_profile.experience_input"
-            id="experience"
-            placeholder="Eg: 5 saal, 3 years"
-            value={form.experience}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, experience: e.target.value }))
-            }
-            className="h-12"
-          />
-        </div>
+          {/* Work Type */}
+          <div className="space-y-2">
+            <Label>Work Type *</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {(
+                [
+                  { value: "daily", label: "Daily Work", emoji: "📅" },
+                  { value: "monthly", label: "Monthly Job", emoji: "📆" },
+                  { value: "contract", label: "Contract", emoji: "📄" },
+                ] as { value: WorkType; label: string; emoji: string }[]
+              ).map((wt) => (
+                <button
+                  key={wt.value}
+                  type="button"
+                  data-ocid={`create_profile.work_type_${wt.value}_toggle`}
+                  onClick={() => setForm((p) => ({ ...p, workType: wt.value }))}
+                  className={`flex flex-col items-center gap-1 py-3 px-2 rounded-xl border-2 text-xs font-semibold transition-colors ${
+                    form.workType === wt.value
+                      ? "border-green-500 bg-green-100 text-green-800"
+                      : "border-gray-200 bg-white text-gray-600"
+                  }`}
+                >
+                  <span className="text-xl">{wt.emoji}</span>
+                  {wt.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="location">Location / City *</Label>
-          <Input
-            data-ocid="create_profile.location_input"
-            id="location"
-            placeholder="Eg: Mumbai, Delhi, Patna"
-            value={form.location}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, location: e.target.value }))
-            }
-            className="h-12"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="salary">Expected Salary *</Label>
-          <Input
-            data-ocid="create_profile.salary_input"
-            id="salary"
-            placeholder="Eg: ₹500/day, ₹18000/month"
-            value={form.expectedSalary}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, expectedSalary: e.target.value }))
-            }
-            className="h-12"
-          />
+          {/* Availability */}
+          <div className="space-y-2">
+            <Label>Availability Status *</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                data-ocid="create_profile.availability_available_toggle"
+                onClick={() =>
+                  setForm((p) => ({ ...p, availability: "available" }))
+                }
+                className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-semibold text-sm transition-colors ${
+                  form.availability === "available"
+                    ? "border-green-500 bg-green-100 text-green-800"
+                    : "border-gray-200 bg-white text-gray-600"
+                }`}
+              >
+                🟢 Available
+              </button>
+              <button
+                type="button"
+                data-ocid="create_profile.availability_busy_toggle"
+                onClick={() => setForm((p) => ({ ...p, availability: "busy" }))}
+                className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-semibold text-sm transition-colors ${
+                  form.availability === "busy"
+                    ? "border-red-500 bg-red-100 text-red-800"
+                    : "border-gray-200 bg-white text-gray-600"
+                }`}
+              >
+                🔴 Busy / Not Available
+              </button>
+            </div>
+          </div>
         </div>
 
         <Button
