@@ -16,8 +16,18 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { Bell, MoreVertical } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  Bell,
+  BookOpen,
+  Briefcase,
+  Map as MapIcon,
+  Menu,
+  MoreVertical,
+  Phone,
+  PlusCircle,
+  User,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { MainMenu } from "./components/MainMenu";
 import {
   type AppNotification,
@@ -71,26 +81,77 @@ const queryClient = new QueryClient({
   },
 });
 
-const TOP_TABS = [
-  { path: "/" as const, label: "Home", ocid: "header.home_tab" },
+// Bottom nav items
+const BOTTOM_NAV = [
+  {
+    path: "/find-work" as const,
+    icon: Briefcase,
+    label: "Kaam",
+    ocid: "nav.kaam_link",
+  },
   {
     path: "/find-worker" as const,
-    label: "Workers",
-    ocid: "header.workers_tab",
+    icon: User,
+    label: "Worker",
+    ocid: "nav.workers_link",
   },
-  { path: "/find-work" as const, label: "Jobs", ocid: "header.jobs_tab" },
-  { path: null as null, label: "Menu", ocid: "header.menu_tab" },
+  {
+    path: "/post-job" as const,
+    icon: PlusCircle,
+    label: "Job Do",
+    ocid: "nav.post_job_button",
+    isCenter: true,
+  },
+  {
+    path: "/contact" as const,
+    icon: Phone,
+    label: "Contact",
+    ocid: "nav.contact_link",
+  },
+  {
+    path: "/worker-map" as const,
+    icon: MapIcon,
+    label: "Map",
+    ocid: "nav.map_link",
+  },
+  {
+    path: "/booking-history" as const,
+    icon: BookOpen,
+    label: "Bookings",
+    ocid: "nav.bookings_link",
+  },
 ];
 
 function LayoutWrapper() {
   const routerState = useRouterState();
   const navigate = useNavigate();
   const currentPath = routerState.location.pathname;
+  const isHome = currentPath === "/";
   const isAdmin = currentPath === "/admin";
   const isPosterPage = currentPath === "/operator-poster";
   const isVoiceSearch = currentPath === "/voice-search";
 
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Admin easter-egg tap logic (moved from Home.tsx)
+  const tapCount = useRef(0);
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [tapFlash, setTapFlash] = useState(false);
+
+  function handleTitleTap() {
+    tapCount.current += 1;
+    setTapFlash(true);
+    setTimeout(() => setTapFlash(false), 200);
+    if (tapTimer.current) clearTimeout(tapTimer.current);
+    tapTimer.current = setTimeout(() => {
+      tapCount.current = 0;
+    }, 3000);
+    if (tapCount.current >= 5) {
+      tapCount.current = 0;
+      if (tapTimer.current) clearTimeout(tapTimer.current);
+      navigate({ to: "/admin" });
+    }
+  }
 
   // Notification state
   const [notifSheetOpen, setNotifSheetOpen] = useState(false);
@@ -143,182 +204,247 @@ function LayoutWrapper() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* ── HEADER ─────────────────────────────────────────────────────────── */}
-      {/* Layout: [Bell]  [KaamMitra — center]  [Three-dot]
-          Below:  [Home]  [Workers]  [Jobs]  [Menu] text tabs              */}
+      {/* ── TWO-LAYER HEADER ─────────────────────────────────────────────── */}
       <header
-        className="sticky top-0 z-40 bg-white"
-        style={{
-          boxShadow: "0 1px 8px rgba(0,0,0,0.08)",
-          fontFamily: "'Poppins', sans-serif",
-        }}
+        className="sticky top-0 z-40"
+        style={{ fontFamily: "'Poppins', sans-serif" }}
         data-ocid="header.navbar"
       >
-        {/* Top Row */}
+        {/* ── ROW 1: Thin orange bar (always shown) ──────────────────────── */}
         <div
-          className="max-w-[520px] mx-auto"
           style={{
-            display: "grid",
-            gridTemplateColumns: "40px 1fr 40px",
-            alignItems: "center",
-            padding: "10px 12px 0 12px",
-            gap: "4px",
+            background: "#FF6F00",
+            boxShadow: isHome ? "none" : "0 2px 8px rgba(0,0,0,0.18)",
           }}
         >
-          {/* Left: Bell icon only */}
-          <button
-            type="button"
-            onClick={openNotifications}
-            aria-label="Notifications"
-            data-ocid="header.notifications_button"
+          <div
+            className="max-w-[520px] mx-auto"
             style={{
-              background: "none",
-              width: "36px",
-              height: "36px",
-              borderRadius: "50%",
-              display: "flex",
+              display: "grid",
+              gridTemplateColumns: "44px 1fr 44px",
               alignItems: "center",
-              justifyContent: "center",
-              border: "none",
-              cursor: "pointer",
-              color: "#555",
-              position: "relative",
+              padding: "6px 12px",
+              height: "42px",
             }}
           >
-            <Bell size={20} />
-            {/* Only show dot when there are unread notifications — no badge on empty */}
-            {unreadCount > 0 && (
-              <span
-                style={{
-                  position: "absolute",
-                  top: "6px",
-                  right: "6px",
-                  width: "8px",
-                  height: "8px",
-                  borderRadius: "50%",
-                  background: "#E65100",
-                  border: "1.5px solid white",
-                }}
-              />
-            )}
-          </button>
+            {/* Left: Hamburger menu */}
+            <button
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Main menu"
+              data-ocid="header.menu_button"
+              style={{
+                background: "none",
+                width: "36px",
+                height: "36px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "none",
+                cursor: "pointer",
+                color: "white",
+              }}
+            >
+              <Menu size={20} />
+            </button>
 
-          {/* Center: App name / logo */}
-          <Link
-            to="/"
-            data-ocid="header.logo_link"
-            style={{
-              color: "#E65100",
-              fontSize: "22px",
-              fontWeight: 800,
-              letterSpacing: "-0.5px",
-              textDecoration: "none",
-              lineHeight: 1,
-              fontFamily: "'Poppins', sans-serif",
-              textAlign: "center",
-              display: "block",
-            }}
-          >
-            KaamMitra
-          </Link>
+            {/* Center: KaamMitra text */}
+            <Link
+              to="/"
+              data-ocid="header.logo_link"
+              style={{
+                color: "white",
+                fontSize: "17px",
+                fontWeight: 800,
+                letterSpacing: "-0.3px",
+                textDecoration: "none",
+                lineHeight: 1,
+                fontFamily: "'Poppins', sans-serif",
+                textAlign: "center",
+                display: "block",
+              }}
+            >
+              KaamMitra
+            </Link>
 
-          {/* Right: Three-dot menu */}
-          <button
-            type="button"
-            onClick={() => setMenuOpen(true)}
-            aria-label="Main menu"
-            data-ocid="header.menu_button"
-            style={{
-              background: "none",
-              width: "36px",
-              height: "36px",
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "none",
-              cursor: "pointer",
-              color: "#555",
-              marginLeft: "auto",
-            }}
-          >
-            <MoreVertical size={20} />
-          </button>
+            {/* Right: spacer (mirrors left button width) */}
+            <div style={{ width: "36px" }} />
+          </div>
         </div>
 
-        {/* Tab Row: Home | Workers | Jobs | Menu */}
-        <div
-          className="max-w-[520px] mx-auto"
-          style={{
-            display: "flex",
-            alignItems: "stretch",
-            justifyContent: "center",
-            padding: "0 4px",
-          }}
-        >
-          {TOP_TABS.map((tab) => {
-            const isActive = tab.path !== null && currentPath === tab.path;
-            if (tab.path === null) {
-              return (
-                <button
-                  key="menu"
-                  type="button"
-                  data-ocid={tab.ocid}
-                  onClick={() => setMenuOpen(true)}
+        {/* ── ROW 2: Dark branding section (home only) ───────────────────── */}
+        {isHome && (
+          <div
+            style={{
+              background:
+                "linear-gradient(160deg, #1A0800 0%, #0A0400 60%, #000000 100%)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.35)",
+            }}
+          >
+            <div
+              className="max-w-[520px] mx-auto"
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                padding: "16px 16px 20px 16px",
+              }}
+            >
+              {/* LEFT: Badge + Logo + Slogans */}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  gap: "4px",
+                  flex: 1,
+                }}
+              >
+                {/* INDIA'S OWN badge */}
+                <span
                   style={{
-                    flex: 1,
+                    fontSize: "10px",
+                    letterSpacing: "2px",
+                    opacity: 0.7,
+                    fontWeight: 600,
+                    color: "white",
+                    fontFamily: "'Poppins', sans-serif",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  🇮🇳 INDIA&apos;S OWN
+                </span>
+
+                {/* KaamMitra heading — admin easter egg */}
+                {/* biome-ignore lint/a11y/useKeyWithClickEvents: hidden admin trigger */}
+                <h1
+                  onClick={handleTitleTap}
+                  style={{
+                    fontSize: "36px",
+                    fontWeight: 900,
+                    color: "white",
+                    fontFamily: "'Poppins', sans-serif",
+                    lineHeight: 1,
+                    margin: 0,
+                    cursor: "default",
+                    userSelect: "none",
+                    opacity: tapFlash ? 0.6 : 1,
+                    transition: "opacity 0.2s",
+                  }}
+                >
+                  KaamMitra
+                </h1>
+
+                {/* Primary slogan */}
+                <p
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "white",
+                    opacity: 0.9,
+                    fontFamily: "'Poppins', sans-serif",
+                    margin: 0,
+                    lineHeight: 1.3,
+                  }}
+                >
+                  KaamMitra - Apka Vishwas, Hamari Zimmedari
+                </p>
+
+                {/* Secondary slogan */}
+                <p
+                  style={{
+                    fontSize: "11px",
+                    color: "white",
+                    opacity: 0.6,
+                    fontFamily: "'Poppins', sans-serif",
+                    margin: 0,
+                  }}
+                >
+                  Sankalp Bharat, Shrestha Bharat
+                </p>
+              </div>
+
+              {/* RIGHT: Bell + Three-dot */}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-end",
+                  gap: "8px",
+                  paddingTop: "4px",
+                }}
+              >
+                {/* Bell button */}
+                <button
+                  type="button"
+                  onClick={openNotifications}
+                  aria-label="Notifications"
+                  data-ocid="header.notifications_button"
+                  style={{
+                    background: "none",
+                    width: "38px",
+                    height: "38px",
+                    borderRadius: "50%",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    padding: "10px 4px",
-                    background: "none",
                     border: "none",
-                    borderBottom: "3px solid transparent",
                     cursor: "pointer",
-                    color: "#65676b",
-                    fontSize: "13px",
-                    fontWeight: 700,
-                    fontFamily: "'Poppins', sans-serif",
+                    color: "white",
+                    position: "relative",
                   }}
                 >
-                  {tab.label}
+                  <Bell size={22} />
+                  {unreadCount > 0 && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: "6px",
+                        right: "6px",
+                        width: "8px",
+                        height: "8px",
+                        borderRadius: "50%",
+                        background: "#FF6F00",
+                        border: "1.5px solid #fff",
+                      }}
+                    />
+                  )}
                 </button>
-              );
-            }
-            return (
-              <Link
-                key={tab.path}
-                to={tab.path}
-                data-ocid={tab.ocid}
-                style={{
-                  flex: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "10px 4px",
-                  textDecoration: "none",
-                  color: isActive ? "#E65100" : "#65676b",
-                  fontSize: "13px",
-                  fontWeight: 700,
-                  fontFamily: "'Poppins', sans-serif",
-                  borderBottom: isActive
-                    ? "3px solid #E65100"
-                    : "3px solid transparent",
-                  transition: "color 0.15s, border-color 0.15s",
-                }}
-              >
-                {tab.label}
-              </Link>
-            );
-          })}
-        </div>
+
+                {/* Three-dot menu */}
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen(true)}
+                  aria-label="More options"
+                  data-ocid="header.more_button"
+                  style={{
+                    background: "none",
+                    width: "38px",
+                    height: "38px",
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "white",
+                  }}
+                >
+                  <MoreVertical size={22} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       <main className="flex-1">
         <Outlet />
       </main>
 
-      {/* Bottom Nav */}
+      {/* Bottom Nav — 6 items */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200"
         style={{ boxShadow: "0 -2px 12px rgba(0,0,0,0.08)" }}
@@ -326,119 +452,71 @@ function LayoutWrapper() {
       >
         <div
           className="max-w-[520px] mx-auto"
-          style={{ display: "flex", alignItems: "center", height: "56px" }}
+          style={{ display: "flex", alignItems: "center", height: "58px" }}
         >
-          <Link
-            to="/"
-            data-ocid="nav.home_link"
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              textDecoration: "none",
-              color: currentPath === "/" ? "#E65100" : "#888",
-              fontSize: "10px",
-              fontWeight: 600,
-              fontFamily: "'Poppins', sans-serif",
-            }}
-          >
-            <span style={{ fontSize: "20px", lineHeight: 1 }}>🏠</span>
-            <span>Home</span>
-          </Link>
-
-          <Link
-            to="/find-worker"
-            data-ocid="nav.workers_link"
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              textDecoration: "none",
-              color: currentPath === "/find-worker" ? "#E65100" : "#888",
-              fontSize: "10px",
-              fontWeight: 600,
-              fontFamily: "'Poppins', sans-serif",
-            }}
-          >
-            <span style={{ fontSize: "20px", lineHeight: 1 }}>👷</span>
-            <span>Workers</span>
-          </Link>
-
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => navigate({ to: "/post-job" })}
-              data-ocid="nav.post_job_button"
-              aria-label="Post a job"
-              style={{
-                width: "50px",
-                height: "50px",
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #FF6F00, #E65100)",
-                border: "3px solid white",
-                boxShadow: "0 4px 14px rgba(230, 81, 0, 0.45)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                marginTop: "-18px",
-                fontSize: "22px",
-              }}
-            >
-              ➕
-            </button>
-          </div>
-
-          <Link
-            to="/find-work"
-            data-ocid="nav.jobs_link"
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              textDecoration: "none",
-              color: currentPath === "/find-work" ? "#E65100" : "#888",
-              fontSize: "10px",
-              fontWeight: 600,
-              fontFamily: "'Poppins', sans-serif",
-            }}
-          >
-            <span style={{ fontSize: "20px", lineHeight: 1 }}>💼</span>
-            <span>Jobs</span>
-          </Link>
-
-          <Link
-            to="/settings"
-            data-ocid="nav.profile_link"
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              textDecoration: "none",
-              color: currentPath === "/settings" ? "#E65100" : "#888",
-              fontSize: "10px",
-              fontWeight: 600,
-              fontFamily: "'Poppins', sans-serif",
-            }}
-          >
-            <span style={{ fontSize: "20px", lineHeight: 1 }}>👤</span>
-            <span>Profile</span>
-          </Link>
+          {BOTTOM_NAV.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentPath === item.path;
+            if (item.isCenter) {
+              return (
+                <div
+                  key={item.path}
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => navigate({ to: item.path })}
+                    data-ocid={item.ocid}
+                    aria-label="Post a job"
+                    style={{
+                      width: "46px",
+                      height: "46px",
+                      borderRadius: "50%",
+                      background: "linear-gradient(135deg, #FF6F00, #E65100)",
+                      border: "3px solid white",
+                      boxShadow: "0 4px 14px rgba(230, 81, 0, 0.45)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      marginTop: "-16px",
+                      color: "white",
+                    }}
+                  >
+                    <Icon size={22} />
+                  </button>
+                </div>
+              );
+            }
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                data-ocid={item.ocid}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  textDecoration: "none",
+                  color: isActive ? "#FF6F00" : "#888",
+                  fontSize: "9px",
+                  fontWeight: 600,
+                  fontFamily: "'Poppins', sans-serif",
+                  gap: "2px",
+                }}
+              >
+                <Icon size={19} strokeWidth={isActive ? 2.5 : 1.8} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
         </div>
       </nav>
 

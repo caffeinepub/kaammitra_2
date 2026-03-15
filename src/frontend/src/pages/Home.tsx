@@ -2,11 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Mic } from "lucide-react";
 import { motion } from "motion/react";
-import { useRef, useState } from "react";
 import { useActor } from "../hooks/useActor";
 import { CATEGORY_EMOJIS, MAIN_CATEGORIES } from "../lib/constants";
 
-// 4 main action tiles — large rectangular
+// 4 main action tiles — large rectangular 2x2 grid
 const ACTIONS = [
   {
     path: "/find-work" as const,
@@ -42,76 +41,96 @@ const ACTIONS = [
   },
 ];
 
-// 10 unique action cards (no duplicates of above 4)
+// 10 action cards with icon bg color + sublabel — horizontal card layout
 const ACTION_CARDS = [
   {
     emoji: "👷",
-    label: "Apni Profile",
+    label: "Apni Profile Banayein",
+    sublabel: "Worker registration",
     path: "/create-profile" as const,
     ocid: "home.create_profile_button",
+    iconBg: "#4CAF50",
     contractorCheck: false,
   },
   {
     emoji: "🏗️",
     label: "Contractor Panel",
+    sublabel: "Job post karein",
     path: null,
     ocid: "home.contractor_register_button",
+    iconBg: "#1565C0",
     contractorCheck: true,
   },
   {
     emoji: "🗺️",
-    label: "Map",
+    label: "Map Mein Dhundho",
+    sublabel: "Nearby workers",
     path: "/worker-map" as const,
     ocid: "home.map_button",
+    iconBg: "#00897B",
     contractorCheck: false,
   },
   {
     emoji: "📍",
     label: "Nearby Jobs",
+    sublabel: "Aas-paas ka kaam",
     path: "/nearby-jobs" as const,
     ocid: "home.nearby_jobs_button",
+    iconBg: "#E91E63",
     contractorCheck: false,
   },
   {
     emoji: "🚖",
-    label: "Transport",
+    label: "Transport Services",
+    sublabel: "Auto • Bike • Taxi",
     path: "/transport-services" as const,
     ocid: "home.transport_services_button",
+    iconBg: "#FF6F00",
     contractorCheck: false,
   },
   {
     emoji: "📋",
     label: "Long Term Hiring",
+    sublabel: "Monthly contracts",
     path: "/long-term-hiring" as const,
     ocid: "home.long_term_hiring_button",
+    iconBg: "#1976D2",
     contractorCheck: false,
   },
   {
     emoji: "🇮🇳",
     label: "Operator Rate Card",
+    sublabel: "Bharat manak rate",
     path: "/operator-poster" as const,
     ocid: "home.operator_poster_button",
+    iconBg: "#388E3C",
     contractorCheck: false,
   },
   {
     emoji: "⚖️",
     label: "Min. Wage Info",
+    sublabel: "Sarkari wage rates",
     path: "/min-wage" as const,
     ocid: "home.min_wage_button",
+    iconBg: "#F4511E",
     contractorCheck: false,
   },
   {
     emoji: "👩\u200d💼",
     label: "Female Job Hub",
+    sublabel: "Maids, Staff, Office",
     path: "/female-hub" as const,
     ocid: "home.female_hub_button",
+    iconBg: "#E91E63",
     contractorCheck: false,
   },
   {
     emoji: "🤖",
     label: "Mitra AI Assistant",
+    sublabel: "AI se job dhundhein",
     path: "/mitra-ai" as const,
     ocid: "home.mitra_ai_button",
+    iconBg: "#7B1FA2",
     contractorCheck: false,
   },
 ];
@@ -119,9 +138,6 @@ const ACTION_CARDS = [
 export function Home() {
   const navigate = useNavigate();
   const { actor, isFetching } = useActor();
-  const tapCount = useRef(0);
-  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [tapFlash, setTapFlash] = useState(false);
 
   const { data: appContent } = useQuery({
     queryKey: ["appContent"],
@@ -132,25 +148,9 @@ export function Home() {
     enabled: !!actor && !isFetching,
   });
 
-  function handleTitleTap() {
-    tapCount.current += 1;
-    setTapFlash(true);
-    setTimeout(() => setTapFlash(false), 200);
-    if (tapTimer.current) clearTimeout(tapTimer.current);
-    tapTimer.current = setTimeout(() => {
-      tapCount.current = 0;
-    }, 3000);
-    if (tapCount.current >= 5) {
-      tapCount.current = 0;
-      if (tapTimer.current) clearTimeout(tapTimer.current);
-      navigate({ to: "/admin" });
-    }
-  }
-
-  const homeText = appContent?.homeText || "Apna Kaam, Apni Pehchaan";
-  const bannerText =
-    appContent?.bannerText || "Connect with skilled workers & contractors";
-  const announcement = appContent?.announcement || "";
+  const announcement =
+    appContent?.announcement ||
+    "🔔 KaamMitra is now live! Apna kaam aaj hi dhundhein.";
 
   const hasContractorProfile = !!localStorage.getItem("contractorProfile");
 
@@ -167,61 +167,26 @@ export function Home() {
   }
 
   return (
-    <div className="page-container pt-0 pb-24">
-      {/* Hero Section */}
-      <div
-        className="relative overflow-hidden -mx-4 px-6 pt-7 pb-10 mb-5"
-        style={{
-          background: "linear-gradient(135deg, #FF6F00 0%, #D84315 100%)",
-        }}
+    <div className="page-container pt-2 pb-28">
+      {/* ── Announcement Banner ──────────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="-mx-4 mb-4 px-4 py-2.5 bg-amber-50 border-y border-amber-200 flex items-start gap-2"
+        data-ocid="home.announcement_banner"
       >
-        <div className="absolute inset-0 opacity-10 pointer-events-none">
-          <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-white" />
-          <div className="absolute bottom-0 left-10 w-24 h-24 rounded-full bg-white" />
-          <div className="absolute top-1/2 right-12 w-14 h-14 rounded-full bg-white" />
-        </div>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="relative z-10 text-white"
+        <span className="text-amber-600 text-base leading-none mt-0.5">📢</span>
+        <p
+          className="text-amber-800 text-sm font-medium"
+          style={{ fontFamily: "'Poppins', sans-serif" }}
         >
-          {/* biome-ignore lint/a11y/useKeyWithClickEvents: hidden admin trigger */}
-          <h1
-            className={`text-4xl font-black leading-none mb-1 select-none cursor-default transition-opacity duration-200 ${
-              tapFlash ? "opacity-60" : "opacity-100"
-            }`}
-            style={{ fontFamily: "'Poppins', sans-serif" }}
-            onClick={handleTitleTap}
-          >
-            KaamMitra
-          </h1>
-          <p
-            className="text-base font-semibold opacity-90 mb-0.5"
-            style={{ fontFamily: "'Poppins', sans-serif" }}
-          >
-            {homeText}
-          </p>
-          <p className="text-xs opacity-70">{bannerText}</p>
-        </motion.div>
-      </div>
+          {announcement}
+        </p>
+      </motion.div>
 
-      {/* Announcement Banner */}
-      {announcement && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="-mx-4 mb-5 px-4 py-2.5 bg-amber-50 border-y border-amber-200 flex items-start gap-2"
-        >
-          <span className="text-amber-600 text-base leading-none mt-0.5">
-            📢
-          </span>
-          <p className="text-amber-800 text-sm font-medium">{announcement}</p>
-        </motion.div>
-      )}
-
-      {/* 4 Main Action Tiles — 2x2 rectangular grid */}
-      <div className="grid grid-cols-2 gap-3 mb-5">
+      {/* ── 4 Main Action Tiles — 2x2 grid ──────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
         {ACTIONS.map((action, i) => (
           <motion.button
             key={action.path}
@@ -239,10 +204,10 @@ export function Home() {
               padding: "18px 10px",
               cursor: "pointer",
               minHeight: "90px",
-              boxShadow: "0 3px 10px rgba(0,0,0,0.15)",
+              boxShadow: "0 3px 10px rgba(0,0,0,0.18)",
             }}
           >
-            <span style={{ fontSize: "30px", lineHeight: 1 }}>
+            <span style={{ fontSize: "28px", lineHeight: 1 }}>
               {action.emoji}
             </span>
             <span
@@ -261,7 +226,7 @@ export function Home() {
         ))}
       </div>
 
-      {/* Voice Search Banner */}
+      {/* ── Voice Search Banner ──────────────────────────────────────────── */}
       <motion.button
         data-ocid="home.voice_search_button"
         initial={{ opacity: 0, y: 14 }}
@@ -269,7 +234,7 @@ export function Home() {
         transition={{ delay: 0.3, duration: 0.4 }}
         whileTap={{ scale: 0.97 }}
         onClick={() => navigate({ to: "/voice-search" })}
-        className="w-full mb-5 text-white flex items-center gap-3 text-left"
+        className="w-full mb-4 text-white flex items-center gap-3 text-left"
         style={{
           background: "linear-gradient(135deg, #FF6F00, #e53935)",
           borderRadius: "14px",
@@ -304,15 +269,15 @@ export function Home() {
         <span className="text-lg font-bold opacity-70">›</span>
       </motion.button>
 
-      {/* 10 Action Cards — 2-column grid */}
-      <div className="mb-5">
+      {/* ── 10 Action Cards — 2-column horizontal card grid ─────────────── */}
+      <div className="mb-4">
         <h2
           className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3"
           style={{ fontFamily: "'Poppins', sans-serif" }}
         >
           Services
         </h2>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2.5">
           {ACTION_CARDS.map((card, i) => (
             <motion.button
               key={card.ocid}
@@ -322,31 +287,59 @@ export function Home() {
               transition={{ delay: 0.1 + i * 0.04, duration: 0.3 }}
               whileTap={{ scale: 0.96 }}
               onClick={() => handleCardNav(card)}
-              className="flex flex-col items-center gap-2 p-4"
+              className="flex items-center gap-2.5 p-3"
               style={{
                 background: "#ffffff",
                 border: "1px solid #f0f0f0",
-                borderRadius: "14px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                borderRadius: "12px",
+                boxShadow: "0 1px 6px rgba(0,0,0,0.06)",
                 cursor: "pointer",
-                textAlign: "center",
+                textAlign: "left",
               }}
             >
-              <span style={{ fontSize: "30px", lineHeight: 1 }}>
-                {card.emoji}
-              </span>
-              <span
-                className="text-xs font-bold text-gray-700 leading-snug text-center"
-                style={{ fontFamily: "'Poppins', sans-serif" }}
+              {/* Colored square icon */}
+              <div
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "10px",
+                  background: card.iconBg,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "22px",
+                  flexShrink: 0,
+                }}
               >
-                {card.label}
-              </span>
+                {card.emoji}
+              </div>
+              {/* Text */}
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span
+                  className="text-xs font-bold text-gray-800 leading-tight"
+                  style={{
+                    fontFamily: "'Poppins', sans-serif",
+                    overflow: "hidden",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                  }}
+                >
+                  {card.label}
+                </span>
+                <span
+                  className="text-[10px] text-gray-400 leading-tight"
+                  style={{ fontFamily: "'Poppins', sans-serif" }}
+                >
+                  {card.sublabel}
+                </span>
+              </div>
             </motion.button>
           ))}
         </div>
       </div>
 
-      {/* Premium Banner */}
+      {/* ── KaamMitra Premium Banner ─────────────────────────────────────── */}
       <motion.button
         data-ocid="home.go_premium_button"
         initial={{ opacity: 0, y: 14 }}
@@ -354,7 +347,7 @@ export function Home() {
         transition={{ delay: 0.35, duration: 0.4 }}
         whileTap={{ scale: 0.97 }}
         onClick={() => navigate({ to: "/premium-plans" })}
-        className="w-full mb-6 text-white flex items-center gap-3 text-left"
+        className="w-full mb-5 text-white flex items-center gap-3 text-left"
         style={{
           background: "linear-gradient(135deg, #7c3aed, #a855f7)",
           borderRadius: "14px",
@@ -379,7 +372,7 @@ export function Home() {
         <span className="text-sm font-bold opacity-70">›</span>
       </motion.button>
 
-      {/* Job Categories — Full Vertical Lists */}
+      {/* ── Job Categories — Full Vertical Lists ─────────────────────────── */}
       <div className="mb-8">
         <h2
           className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4"
