@@ -1,10 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Download, IdCard } from "lucide-react";
+import { BlueBadge } from "../components/BlueBadge";
 import {
   CATEGORY_EMOJIS,
   getMyExtendedProfile,
   getVerificationRecord,
+  isWorkerPaidVerified,
 } from "../lib/constants";
 
 export function WorkerIDCard() {
@@ -22,7 +24,13 @@ export function WorkerIDCard() {
   const salary = workerProfile?.salary || "";
   const city = myProfile?.city || workerProfile?.city || "";
   const state = myProfile?.state || "";
-  const workerId = mobile ? `WM-${mobile.slice(-6)}` : "WM-000000";
+  const profilePhotoBase64 = myProfile?.profilePhotoBase64 || "";
+
+  const catInitial =
+    category.replace(/\s+/g, "").slice(0, 2).toUpperCase() || "KM";
+  const mobileDigits = mobile.slice(-5).padStart(5, "0");
+  const workerId = mobile ? `KM-${catInitial}-${mobileDigits}` : "KM-KM-00000";
+
   const initials = name
     .split(" ")
     .map((w: string) => w[0])
@@ -31,7 +39,8 @@ export function WorkerIDCard() {
     .slice(0, 2);
 
   const verRecord = mobile ? getVerificationRecord(mobile) : null;
-  const profileUrl = `${window.location.origin}/worker-profile?mobile=${mobile}`;
+  const paidVerified = mobile ? isWorkerPaidVerified(mobile) : false;
+  const profileUrl = `${window.location.origin}/scan-worker?mobile=${mobile}`;
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(profileUrl)}&bgcolor=ffffff&color=1a5e20`;
 
   function handleDownload() {
@@ -71,7 +80,7 @@ export function WorkerIDCard() {
   return (
     <div data-ocid="worker_id_card.page" className="page-container pt-4 pb-24">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6 print:hidden">
+      <div className="flex items-center gap-3 mb-4 print:hidden">
         <button
           type="button"
           onClick={() => navigate({ to: "/settings" })}
@@ -82,41 +91,104 @@ export function WorkerIDCard() {
         <h1 className="text-xl font-display font-black">My ID Card</h1>
       </div>
 
+      {/* Paid verified promo or status */}
+      {!paidVerified ? (
+        <div className="mb-4 print:hidden bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="font-bold text-blue-800 text-sm">
+              🔵 Blue Badge + ID Card
+            </p>
+            <p className="text-blue-600 text-xs">
+              Verified badge paane ke liye ₹99 pay karein
+            </p>
+          </div>
+          <Button
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+            onClick={() => navigate({ to: "/verify-and-pay" })}
+            data-ocid="worker_id_card.get_verified_button"
+          >
+            Get Verified →
+          </Button>
+        </div>
+      ) : (
+        <div className="mb-4 print:hidden bg-blue-500 rounded-xl p-3 flex items-center gap-3">
+          <BlueBadge size="lg" />
+          <p className="font-bold text-white">
+            Verified Worker — Blue Badge Active!
+          </p>
+        </div>
+      )}
+
       {/* ID Card */}
       <div
         id="worker-id-card"
-        className="max-w-sm mx-auto rounded-2xl overflow-hidden shadow-xl border border-green-200 bg-white"
+        className="max-w-sm mx-auto rounded-2xl overflow-hidden shadow-xl border bg-white"
+        style={{ borderColor: paidVerified ? "#3b82f6" : "#d1fae5" }}
       >
-        {/* Green Header */}
-        <div className="bg-gradient-to-r from-green-600 to-emerald-700 px-5 py-4 flex items-center justify-between">
+        {/* Header strip */}
+        <div
+          className="px-5 py-4 flex items-center justify-between"
+          style={{
+            background: paidVerified
+              ? "linear-gradient(to right, #1d4ed8, #2563eb)"
+              : "linear-gradient(to right, #16a34a, #059669)",
+          }}
+        >
           <div>
-            <p className="text-green-100 text-xs font-semibold tracking-wider uppercase">
+            <p className="text-white/80 text-xs font-semibold tracking-wider uppercase">
               KaamMitra
             </p>
             <p className="text-white text-base font-display font-black">
               Worker ID Card
             </p>
           </div>
-          <div className="text-2xl">🪪</div>
+          <div className="flex items-center gap-2">
+            {paidVerified && <BlueBadge size="lg" />}
+            <div className="text-2xl">🪪</div>
+          </div>
         </div>
 
         {/* Body */}
         <div className="p-5">
           <div className="flex items-start gap-4 mb-4">
             {/* Avatar */}
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-black text-xl shrink-0 border-2 border-green-200">
-              {initials}
-            </div>
+            {profilePhotoBase64 ? (
+              <img
+                src={profilePhotoBase64}
+                alt="Profile"
+                className="w-16 h-16 rounded-full object-cover shrink-0 border-2"
+                style={{ borderColor: paidVerified ? "#93c5fd" : "#bbf7d0" }}
+              />
+            ) : (
+              <div
+                className="w-16 h-16 rounded-full flex items-center justify-center text-white font-black text-xl shrink-0 border-2"
+                style={{
+                  background: paidVerified
+                    ? "linear-gradient(to br, #3b82f6, #2563eb)"
+                    : "linear-gradient(to br, #16a34a, #059669)",
+                  borderColor: paidVerified ? "#93c5fd" : "#bbf7d0",
+                }}
+              >
+                {initials}
+              </div>
+            )}
 
             <div className="flex-1 min-w-0">
-              <h2 className="font-display font-black text-lg text-foreground leading-tight">
-                {name}
-              </h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="font-display font-black text-lg text-foreground leading-tight">
+                  {name}
+                </h2>
+                {paidVerified && <BlueBadge size="sm" />}
+              </div>
               <p className="text-xs text-muted-foreground font-mono mt-0.5">
                 {workerId}
               </p>
               {category && (
-                <p className="text-sm font-semibold text-green-700 mt-1">
+                <p
+                  className="text-sm font-semibold mt-1"
+                  style={{ color: paidVerified ? "#2563eb" : "#15803d" }}
+                >
                   {CATEGORY_EMOJIS[category] || "👷"} {category}
                 </p>
               )}
@@ -144,16 +216,18 @@ export function WorkerIDCard() {
             )}
             {salary && (
               <div className="bg-gray-50 rounded-lg p-2.5">
-                <p className="text-xs text-muted-foreground">💰 Expected Pay</p>
+                <p className="text-xs text-muted-foreground">💰 Daily Rate</p>
                 <p className="text-xs font-semibold text-foreground mt-0.5">
-                  ₹{salary}
+                  ₹{salary}/day
                 </p>
               </div>
             )}
             <div className="bg-gray-50 rounded-lg p-2.5">
               <p className="text-xs text-muted-foreground">📋 Status</p>
               <p className="text-xs font-semibold mt-0.5">
-                {verRecord?.status === "verified" ? (
+                {paidVerified ? (
+                  <span className="text-blue-700">🔵 Blue Verified</span>
+                ) : verRecord?.status === "verified" ? (
                   <span className="text-green-700">✅ Verified</span>
                 ) : verRecord?.status === "pending" ? (
                   <span className="text-yellow-700">⏳ Pending</span>
@@ -165,7 +239,13 @@ export function WorkerIDCard() {
           </div>
 
           {/* QR Code */}
-          <div className="flex items-center gap-4 bg-green-50 rounded-xl p-3 border border-green-100">
+          <div
+            className="flex items-center gap-4 rounded-xl p-3 border"
+            style={{
+              background: paidVerified ? "#eff6ff" : "#f0fdf4",
+              borderColor: paidVerified ? "#bfdbfe" : "#d1fae5",
+            }}
+          >
             <div data-ocid="worker_id_card.qr_code">
               <img
                 src={qrApiUrl}
@@ -179,13 +259,22 @@ export function WorkerIDCard() {
               />
             </div>
             <div>
-              <p className="text-xs font-bold text-green-800">
+              <p
+                className="text-xs font-bold"
+                style={{ color: paidVerified ? "#1e40af" : "#166534" }}
+              >
                 Scan to View Profile
               </p>
-              <p className="text-xs text-green-700 mt-0.5">
-                KaamMitra verified worker
+              <p
+                className="text-xs mt-0.5"
+                style={{ color: paidVerified ? "#2563eb" : "#15803d" }}
+              >
+                KaamMitra {paidVerified ? "blue" : ""} verified worker
               </p>
-              <p className="text-xs text-green-600 font-mono mt-1">
+              <p
+                className="text-xs font-mono mt-1"
+                style={{ color: paidVerified ? "#3b82f6" : "#16a34a" }}
+              >
                 {workerId}
               </p>
             </div>
@@ -193,8 +282,17 @@ export function WorkerIDCard() {
         </div>
 
         {/* Footer strip */}
-        <div className="bg-green-50 border-t border-green-100 px-5 py-2 text-center">
-          <p className="text-xs text-green-700">
+        <div
+          className="border-t px-5 py-2 text-center"
+          style={{
+            background: paidVerified ? "#eff6ff" : "#f0fdf4",
+            borderColor: paidVerified ? "#bfdbfe" : "#d1fae5",
+          }}
+        >
+          <p
+            className="text-xs"
+            style={{ color: paidVerified ? "#1d4ed8" : "#166534" }}
+          >
             KaamMitra — India ka Apna Job Platform 🇮🇳
           </p>
         </div>
@@ -205,7 +303,8 @@ export function WorkerIDCard() {
         <Button
           data-ocid="worker_id_card.download_button"
           onClick={handleDownload}
-          className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl flex items-center justify-center gap-2"
+          className="w-full h-12 text-white font-bold rounded-xl flex items-center justify-center gap-2"
+          style={{ background: paidVerified ? "#2563eb" : "#16a34a" }}
         >
           <Download className="w-5 h-5" />
           Download / Print ID Card

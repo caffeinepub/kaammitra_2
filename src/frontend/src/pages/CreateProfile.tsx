@@ -33,7 +33,9 @@ import type { Worker } from "../backend.d";
 import { useActor } from "../hooks/useActor";
 import { useCreateWorker } from "../hooks/useQueries";
 import {
+  AUTO_SERVICES,
   type AvailabilityStatus,
+  BIKE_RIDER_SERVICES,
   CATEGORY_EMOJIS,
   INDIA_STATES_CITIES,
   MAIN_CATEGORIES,
@@ -221,6 +223,13 @@ export function CreateProfile() {
     businessRegFileName: "",
     dailyWageRate: "",
     gender: "",
+    drivingLicenseNumber: "",
+    bikeRC: "",
+    bikeServices: [] as string[],
+    autoRC: "",
+    autoServices: [] as string[],
+    email: "",
+    experienceProofFileName: "",
   });
 
   const [savedProfile, setSavedProfile] = useState<Worker | null>(null);
@@ -320,6 +329,35 @@ export function CreateProfile() {
       return;
     }
 
+    if (form.category === "Auto Rickshaw Driver") {
+      if (!form.drivingLicenseNumber) {
+        toast.error("Driving License Number daalna zaroori hai");
+        return;
+      }
+      if (!form.autoRC) {
+        toast.error("Auto Vehicle RC Number daalna zaroori hai");
+        return;
+      }
+      if (form.autoServices.length === 0) {
+        toast.error("Kam se kam ek service type chunein");
+        return;
+      }
+    }
+    if (form.category === "Bike Rider") {
+      if (!form.drivingLicenseNumber) {
+        toast.error("Driving License number daalo");
+        return;
+      }
+      if (!form.bikeRC) {
+        toast.error("Bike RC number daalo");
+        return;
+      }
+      if (form.bikeServices.length === 0) {
+        toast.error("Kam se kam ek service type chunein");
+        return;
+      }
+    }
+
     const locationStr =
       form.state && form.city
         ? `${form.city}, ${form.state}`
@@ -379,6 +417,13 @@ export function CreateProfile() {
         lat: form.lat || undefined,
         lng: form.lng || undefined,
         lastUpdated: Date.now(),
+        drivingLicense: form.drivingLicenseNumber || undefined,
+        bikeRC: form.bikeRC || undefined,
+        bikeServices:
+          form.bikeServices.length > 0 ? form.bikeServices : undefined,
+        autoRC: form.autoRC || undefined,
+        autoServices:
+          form.autoServices.length > 0 ? form.autoServices : undefined,
       };
 
       saveMyExtendedProfile(extData);
@@ -479,6 +524,13 @@ export function CreateProfile() {
     businessRegFileName: "",
     dailyWageRate: "",
     gender: "",
+    drivingLicenseNumber: "",
+    bikeRC: "",
+    bikeServices: [] as string[],
+    autoRC: "",
+    autoServices: [] as string[],
+    email: "",
+    experienceProofFileName: "",
     ...prefill,
   });
 
@@ -668,6 +720,77 @@ export function CreateProfile() {
           </div>
         </div>
 
+        {/* ── DIGITAL ID CARD PREVIEW ────────────────────── */}
+        {hasTrustBadge && (
+          <div
+            data-ocid="create_profile.card"
+            className="card-elevated overflow-hidden mb-4 border-2 border-blue-300"
+          >
+            <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-4 py-3 flex items-center justify-between">
+              <div>
+                <p className="text-white font-bold text-sm">
+                  🪪 Digital Worker ID Card
+                </p>
+                <p className="text-blue-200 text-xs">
+                  KaamMitra Verified Worker
+                </p>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                <span className="text-white text-lg">✅</span>
+              </div>
+            </div>
+            <div className="p-4 flex gap-3">
+              <div className="w-16 h-16 rounded-full bg-primary/10 border-2 border-blue-300 flex items-center justify-center shrink-0 overflow-hidden">
+                <UserCircle2 className="w-10 h-10 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <p className="font-bold text-sm truncate">
+                    {savedProfile.name}
+                  </p>
+                  <span className="shrink-0 w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center">
+                    <span className="text-white text-[8px] font-bold">✓</span>
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {CATEGORY_EMOJIS[savedProfile.category]}{" "}
+                  {savedProfile.category}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {savedProfile.location}
+                </p>
+                <p className="text-xs font-semibold text-blue-700 mt-1">
+                  ID: KM-
+                  {savedProfile.category
+                    .replace(/\s+/g, "")
+                    .slice(0, 2)
+                    .toUpperCase()}
+                  -{savedProfile.id.toString().slice(-5).padStart(5, "0")}
+                </p>
+              </div>
+              <div className="shrink-0">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=64x64&data=${encodeURIComponent(`${window.location.origin}/scan-worker?mobile=${ext?.mobile || ""}`)}&bgcolor=ffffff&color=1a4e8a`}
+                  alt="QR Code"
+                  className="w-16 h-16 rounded-lg border border-blue-200"
+                />
+                <p className="text-[9px] text-center text-muted-foreground mt-0.5">
+                  Scan to verify
+                </p>
+              </div>
+            </div>
+            <div className="px-4 pb-3">
+              <button
+                type="button"
+                onClick={() => navigate({ to: "/worker-id-card" })}
+                className="w-full text-xs text-blue-700 font-semibold bg-blue-50 border border-blue-200 rounded-lg py-2 hover:bg-blue-100 transition-colors"
+              >
+                Full ID Card Dekho →
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-3">
           <Button
             data-ocid="create_profile.find_worker_button"
@@ -718,9 +841,36 @@ export function CreateProfile() {
       <h1 className="text-2xl font-display font-black mb-1">
         Worker Profile Banao
       </h1>
-      <p className="text-sm text-muted-foreground mb-5">
+      <p className="text-sm text-muted-foreground mb-3">
         Apni details do, contractors milenge
       </p>
+
+      {/* ── WELCOME INTRO BANNER ─────────────────────────────────── */}
+      <div
+        data-ocid="create_profile.intro_banner"
+        className="bg-gradient-to-r from-emerald-600 to-green-500 text-white rounded-2xl px-4 py-4 mb-5 relative overflow-hidden"
+      >
+        <div
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 80% 20%, white 0%, transparent 60%)",
+          }}
+        />
+        <div className="relative">
+          <div className="flex items-start gap-3 mb-2">
+            <span className="text-2xl mt-0.5">👷</span>
+            <p className="font-bold text-sm leading-snug">
+              Kaam Mitra platform par koi bhi vyakti (Male ya Female) apni skill
+              ke hisab se job dhundh sakta hai.
+            </p>
+          </div>
+          <p className="text-xs text-white/90 pl-9">
+            Is form ko bharne ke baad aapka profile ban jayega aur employer
+            aapko kaam ke liye contact kar sakte hain.
+          </p>
+        </div>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* ── SECTION 1: BASIC DETAILS ───────────────────────────── */}
@@ -745,23 +895,34 @@ export function CreateProfile() {
 
           {/* Gender */}
           <div className="space-y-1.5">
-            <Label htmlFor="gender">Gender *</Label>
-            <Select
-              value={form.gender}
-              onValueChange={(v) => setForm((p) => ({ ...p, gender: v }))}
+            <Label>Gender *</Label>
+            <div
+              data-ocid="create_profile.gender_radio"
+              className="flex gap-3 mt-1"
             >
-              <SelectTrigger
-                data-ocid="create_profile.gender_select"
-                className="h-12"
-              >
-                <SelectValue placeholder="Gender chunein" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Male">👨 Male (Purush)</SelectItem>
-                <SelectItem value="Female">👩 Female (Mahila)</SelectItem>
-                <SelectItem value="Other">⚧ Other (Anya)</SelectItem>
-              </SelectContent>
-            </Select>
+              {[
+                { value: "Male", label: "👨 Male", sub: "Purush" },
+                { value: "Female", label: "👩 Female", sub: "Mahila" },
+                { value: "Other", label: "⚧ Other", sub: "Anya" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, gender: opt.value }))}
+                  className={`flex-1 rounded-xl border-2 py-3 px-2 text-center transition-all ${
+                    form.gender === opt.value
+                      ? "border-orange-500 bg-orange-50 text-orange-800 font-bold"
+                      : "border-border bg-background text-muted-foreground"
+                  }`}
+                >
+                  <div className="text-lg">{opt.label.split(" ")[0]}</div>
+                  <div className="text-xs font-semibold mt-0.5">
+                    {opt.value}
+                  </div>
+                  <div className="text-xs opacity-70">{opt.sub}</div>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Female Safety Tips */}
@@ -793,7 +954,7 @@ export function CreateProfile() {
             <Label htmlFor="phone">Mobile Number *</Label>
             <div className="flex gap-2">
               <Input
-                data-ocid="create_profile.phone_input"
+                data-ocid="create_profile.mobile_input"
                 id="phone"
                 type="tel"
                 placeholder="10 digit mobile number"
@@ -865,6 +1026,27 @@ export function CreateProfile() {
               }
               className="h-12"
               maxLength={10}
+            />
+          </div>
+
+          {/* Email */}
+          <div className="space-y-1.5">
+            <Label htmlFor="email">
+              Email ID{" "}
+              <span className="text-muted-foreground font-normal text-xs">
+                (Optional)
+              </span>
+            </Label>
+            <Input
+              data-ocid="create_profile.email_input"
+              id="email"
+              type="email"
+              placeholder="aapka@email.com"
+              value={form.email}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, email: e.target.value }))
+              }
+              className="h-12"
             />
           </div>
 
@@ -986,36 +1168,41 @@ export function CreateProfile() {
 
           {/* City */}
           <div className="space-y-1.5">
-            <Label>City *</Label>
-            <Select
+            <Label htmlFor="city">City *</Label>
+            <Input
+              data-ocid="create_profile.city_input"
+              id="city"
+              placeholder="Apna sheher likhein (Eg: Delhi, Lucknow)"
               value={form.city}
-              onValueChange={(v) =>
+              onChange={(e) =>
                 setForm((p) => ({
                   ...p,
-                  city: v,
-                  location: `${v}, ${p.state}`,
+                  city: e.target.value,
+                  location: `${e.target.value}, ${p.state}`,
                 }))
               }
-              disabled={!form.state}
-            >
-              <SelectTrigger
-                data-ocid="create_profile.city_select"
-                className="h-12"
-              >
-                <SelectValue
-                  placeholder={
-                    form.state ? "City chunein" : "Pehle state chunein"
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {citiesForState.map((c) => (
-                  <SelectItem key={c} value={c}>
+              className="h-12"
+            />
+            {citiesForState.length > 0 && !form.city && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {citiesForState.slice(0, 6).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() =>
+                      setForm((p) => ({
+                        ...p,
+                        city: c,
+                        location: `${c}, ${p.state}`,
+                      }))
+                    }
+                    className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+                  >
                     {c}
-                  </SelectItem>
+                  </button>
                 ))}
-              </SelectContent>
-            </Select>
+              </div>
+            )}
           </div>
 
           {/* GPS Button */}
@@ -1087,7 +1274,7 @@ export function CreateProfile() {
                 setForm((p) => ({ ...p, aadhaarFileName: name }))
               }
               required
-              uploadOcid="create_profile.aadhaar_upload_button"
+              uploadOcid="create_profile.id_proof_upload"
             />
           </div>
 
@@ -1104,8 +1291,30 @@ export function CreateProfile() {
                 setForm((p) => ({ ...p, profilePhotoName: name }))
               }
               required
-              uploadOcid="create_profile.profile_photo_upload_button"
+              uploadOcid="create_profile.profile_picture_upload"
             />
+          </div>
+
+          {/* Experience Proof */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-purple-800">
+              Experience Proof{" "}
+              <span className="text-muted-foreground font-normal">
+                (Optional)
+              </span>
+            </Label>
+            <FileUploadField
+              id="experience-proof-upload"
+              label="Experience Proof Upload Karo"
+              fileName={form.experienceProofFileName}
+              onChange={(name) =>
+                setForm((p) => ({ ...p, experienceProofFileName: name }))
+              }
+              uploadOcid="create_profile.experience_proof_upload"
+            />
+            <p className="text-xs text-muted-foreground">
+              Salary slip, appointment letter, photo from work site
+            </p>
           </div>
 
           {/* Profession-specific documents */}
@@ -1130,7 +1339,7 @@ export function CreateProfile() {
                         setForm((p) => ({ ...p, drivingLicenceFileName: name }))
                       }
                       required
-                      uploadOcid="create_profile.driving_licence_upload_button"
+                      uploadOcid="create_profile.license_upload"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -1167,6 +1376,138 @@ export function CreateProfile() {
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                </>
+              )}
+
+              {/* BIKE RIDER specific */}
+              {form.category === "Bike Rider" && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">
+                      Driving License Number *
+                    </Label>
+                    <input
+                      className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      placeholder="DL number daalo"
+                      value={form.drivingLicenseNumber}
+                      onChange={(e) =>
+                        setForm((p) => ({
+                          ...p,
+                          drivingLicenseNumber: e.target.value,
+                        }))
+                      }
+                      data-ocid="create_profile.driving_license_input"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">
+                      Bike RC Number *
+                    </Label>
+                    <input
+                      className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      placeholder="RC number daalo"
+                      value={form.bikeRC}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, bikeRC: e.target.value }))
+                      }
+                      data-ocid="create_profile.bike_rc_input"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium">
+                      Service Types Offered * (kam se kam ek chunein)
+                    </Label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {BIKE_RIDER_SERVICES.map((svc) => (
+                        <label
+                          key={svc}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={form.bikeServices.includes(svc)}
+                            onChange={(e) => {
+                              setForm((p) => ({
+                                ...p,
+                                bikeServices: e.target.checked
+                                  ? [...p.bikeServices, svc]
+                                  : p.bikeServices.filter((s) => s !== svc),
+                              }));
+                            }}
+                            className="w-4 h-4 accent-yellow-500"
+                            data-ocid="create_profile.bike_service_checkbox"
+                          />
+                          <span className="text-sm">{svc}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* AUTO RICKSHAW DRIVER specific */}
+              {form.category === "Auto Rickshaw Driver" && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">
+                      Driving License Number *
+                    </Label>
+                    <input
+                      className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      placeholder="DL number daalo"
+                      value={form.drivingLicenseNumber}
+                      onChange={(e) =>
+                        setForm((p) => ({
+                          ...p,
+                          drivingLicenseNumber: e.target.value,
+                        }))
+                      }
+                      data-ocid="create_profile.auto_driving_license_input"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">
+                      Auto Vehicle RC Number *
+                    </Label>
+                    <input
+                      className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      placeholder="Auto RC number daalo"
+                      value={form.autoRC}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, autoRC: e.target.value }))
+                      }
+                      data-ocid="create_profile.auto_rc_input"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium">
+                      Service Types Offered * (kam se kam ek chunein)
+                    </Label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {AUTO_SERVICES.map((svc) => (
+                        <label
+                          key={svc}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={form.autoServices.includes(svc)}
+                            onChange={(e) => {
+                              setForm((p) => ({
+                                ...p,
+                                autoServices: e.target.checked
+                                  ? [...p.autoServices, svc]
+                                  : p.autoServices.filter((s) => s !== svc),
+                              }));
+                            }}
+                            className="w-4 h-4 accent-amber-500"
+                            data-ocid="create_profile.auto_service_checkbox"
+                          />
+                          <span className="text-sm">{svc}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </>
               )}

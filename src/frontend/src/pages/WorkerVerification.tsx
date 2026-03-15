@@ -186,6 +186,36 @@ export function WorkerVerification() {
       {/* Status badge if already submitted */}
       <StatusBadge status={currentStatus} />
 
+      {/* Verification System Intro */}
+      <div
+        data-ocid="worker_verification.intro_section"
+        className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-2xl p-4 mb-4 relative overflow-hidden"
+      >
+        <div className="absolute top-0 right-0 text-white/10 text-8xl font-black select-none leading-none">
+          ✔
+        </div>
+        <div className="relative">
+          <p className="font-bold text-base mb-1">Verification System</p>
+          <p className="text-xs text-white/90 mb-2">
+            Kaam Mitra platform par bharosa badhane ke liye Worker aur
+            Contractor verification system diya gaya hai.
+          </p>
+          <p className="text-xs text-white/85 mb-3">
+            User apna profile verify kar sakta hai jisse dusre logon ko pata
+            chale ki profile asli aur trusted hai.
+          </p>
+          <div className="bg-white/20 rounded-xl px-3 py-2 inline-flex items-center gap-2">
+            <span className="text-lg">✔</span>
+            <div>
+              <p className="text-xs font-bold">Verified Badge</p>
+              <p className="text-xs text-white/80">
+                Verification ke baad profile par ✔ Verified Badge dikhaya jayega
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Info card */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
         <p className="text-xs font-bold text-blue-800 mb-1">

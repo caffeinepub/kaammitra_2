@@ -77,6 +77,23 @@ export const MAIN_CATEGORIES = [
       "Bus Driver",
     ],
   },
+  {
+    id: "transport",
+    name: "Transport Services",
+    emoji: "🚖",
+    color: "from-amber-500 to-yellow-500",
+    bgColor: "bg-amber-50",
+    borderColor: "border-amber-200",
+    textColor: "text-amber-900",
+    subcategories: [
+      "Auto Rickshaw Driver",
+      "Bike Rider / Delivery Boy",
+      "E-Rickshaw Driver",
+      "Taxi Driver",
+      "Mini Tempo Driver",
+      "Loading Auto Driver",
+    ],
+  },
 ] as const;
 
 // Flat list for dropdowns - JCB Operator always first
@@ -122,6 +139,13 @@ export const CATEGORY_EMOJIS: Record<string, string> = {
   "Dumper Driver": "🚛",
   "Tractor Driver": "🚜",
   "Bus Driver": "🚌",
+  "Bike Rider": "🏍️",
+  "Auto Rickshaw Driver": "🛺",
+  "Bike Rider / Delivery Boy": "🏍️",
+  "E-Rickshaw Driver": "🛻",
+  "Taxi Driver": "🚕",
+  "Mini Tempo Driver": "🚐",
+  "Loading Auto Driver": "🛺",
   // legacy aliases
   Labour: "💪",
   Driver: "🚗",
@@ -162,6 +186,13 @@ export const CATEGORY_COLORS: Record<string, string> = {
   "Dumper Driver": "bg-teal-100 text-teal-800",
   "Tractor Driver": "bg-lime-100 text-lime-800",
   "Bus Driver": "bg-green-100 text-green-800",
+  "Bike Rider": "bg-yellow-100 text-yellow-800",
+  "Auto Rickshaw Driver": "bg-yellow-100 text-yellow-900",
+  "Bike Rider / Delivery Boy": "bg-yellow-100 text-yellow-800",
+  "E-Rickshaw Driver": "bg-green-100 text-green-800",
+  "Taxi Driver": "bg-blue-100 text-blue-800",
+  "Mini Tempo Driver": "bg-orange-100 text-orange-800",
+  "Loading Auto Driver": "bg-amber-100 text-amber-900",
   // legacy
   Labour: "bg-red-100 text-red-800",
   Driver: "bg-green-100 text-green-800",
@@ -188,6 +219,13 @@ export const PROFESSION_DOC_GROUPS: Record<string, DocGroup> = {
   "Dumper Driver": "driver",
   "Tractor Driver": "driver",
   "Bus Driver": "driver",
+  "Bike Rider": "driver",
+  "Auto Rickshaw Driver": "driver",
+  "Bike Rider / Delivery Boy": "driver",
+  "E-Rickshaw Driver": "driver",
+  "Taxi Driver": "driver",
+  "Mini Tempo Driver": "driver",
+  "Loading Auto Driver": "driver",
   // Machine Operators
   "JCB Operator": "machine_operator",
   "Excavator Operator": "machine_operator",
@@ -431,6 +469,11 @@ export interface WorkerExtended {
   dailyWageRate?: string;
   gender?: string;
   blockedStatus?: boolean;
+  drivingLicense?: string;
+  bikeRC?: string;
+  bikeServices?: string[];
+  autoRC?: string;
+  autoServices?: string[];
 }
 
 export const EXTENDED_PROFILE_KEY = "kaam_mitra_extended_profiles";
@@ -625,6 +668,10 @@ export interface VerificationRecord {
   status: VerificationStatus;
   submittedAt: number;
   reviewedAt?: number;
+  paidVerified?: boolean;
+  otpVerified?: boolean;
+  verifiedAt?: number;
+  paymentTxnId?: string;
 }
 
 const VERIFICATION_RECORDS_KEY = "kaam_mitra_verification_records";
@@ -652,6 +699,46 @@ export function getVerificationRecord(
   mobile: string,
 ): VerificationRecord | null {
   return loadAllVerificationRecords().find((r) => r.mobile === mobile) ?? null;
+}
+
+export function isWorkerPaidVerified(mobile: string): boolean {
+  const rec = getVerificationRecord(mobile);
+  return (
+    (rec?.paidVerified === true && rec?.status === "pending") ||
+    (rec?.paidVerified === true && rec?.status === "verified")
+  );
+}
+
+const PAID_VERIFICATION_KEY = "kaam_mitra_paid_verifications";
+
+export interface PaidVerificationRecord {
+  mobile: string;
+  txnId: string;
+  amount: number;
+  paidAt: number;
+}
+
+export function savePaidVerification(r: PaidVerificationRecord): void {
+  try {
+    const raw = localStorage.getItem(PAID_VERIFICATION_KEY);
+    const all: PaidVerificationRecord[] = raw ? JSON.parse(raw) : [];
+    const idx = all.findIndex((x) => x.mobile === r.mobile);
+    if (idx >= 0) all[idx] = r;
+    else all.push(r);
+    localStorage.setItem(PAID_VERIFICATION_KEY, JSON.stringify(all));
+  } catch {}
+}
+
+export function getPaidVerification(
+  mobile: string,
+): PaidVerificationRecord | null {
+  try {
+    const raw = localStorage.getItem(PAID_VERIFICATION_KEY);
+    const all: PaidVerificationRecord[] = raw ? JSON.parse(raw) : [];
+    return all.find((x) => x.mobile === mobile) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // ─── ONLINE/OFFLINE STATUS ─────────────────────────────────────────────────
@@ -897,9 +984,79 @@ export const CATEGORY_FEES: Record<string, number> = {
   "Dumper Driver": 100,
   "Tractor Driver": 80,
   "Bus Driver": 100,
+  "Bike Rider": 60,
+  "Auto Rickshaw Driver": 60,
+  "Bike Rider / Delivery Boy": 60,
+  "E-Rickshaw Driver": 50,
+  "Taxi Driver": 80,
+  "Mini Tempo Driver": 70,
+  "Loading Auto Driver": 60,
 };
 
 export const ADMIN_UPI_ID = "kaammitra@upi";
+export const BIKE_RIDER_SERVICES = [
+  "Parcel Delivery",
+  "Food Delivery",
+  "Document Delivery",
+  "Personal Ride",
+  "Emergency Item Pickup",
+] as const;
+export type BikeRiderService = (typeof BIKE_RIDER_SERVICES)[number];
+
+export const TRANSPORT_VEHICLE_TYPES = [
+  {
+    id: "auto",
+    label: "Auto Rickshaw",
+    emoji: "🛺",
+    category: "Auto Rickshaw Driver",
+    description: "Local rides, shopping",
+  },
+  {
+    id: "bike",
+    label: "Bike / Delivery",
+    emoji: "🏍️",
+    category: "Bike Rider / Delivery Boy",
+    description: "Parcel, food, documents",
+  },
+  {
+    id: "erickshaw",
+    label: "E-Rickshaw",
+    emoji: "🛻",
+    category: "E-Rickshaw Driver",
+    description: "Eco-friendly local ride",
+  },
+  {
+    id: "taxi",
+    label: "Taxi / Cab",
+    emoji: "🚕",
+    category: "Taxi Driver",
+    description: "Airport, outstation",
+  },
+  {
+    id: "tempo",
+    label: "Mini Tempo",
+    emoji: "🚐",
+    category: "Mini Tempo Driver",
+    description: "Goods transport",
+  },
+  {
+    id: "loadingauto",
+    label: "Loading Auto",
+    emoji: "🛺",
+    category: "Loading Auto Driver",
+    description: "Heavy goods delivery",
+  },
+] as const;
+
+export const AUTO_SERVICES = [
+  "Local Ride",
+  "Office Drop",
+  "Station / Airport Drop",
+  "Shopping Trip",
+  "Hourly Hire",
+] as const;
+export type AutoService = (typeof AUTO_SERVICES)[number];
+
 const CATEGORY_FEES_KEY = "kaam_mitra_category_fees_override";
 
 export function getCategoryFee(category: string): number {
@@ -946,6 +1103,10 @@ export interface PaymentRecord {
   status: PaymentStatus;
   submittedAt: number;
   reviewedAt?: number;
+  paidVerified?: boolean;
+  otpVerified?: boolean;
+  verifiedAt?: number;
+  paymentTxnId?: string;
   rejectionReason?: string;
 }
 
@@ -1116,4 +1277,108 @@ export function getWithdrawals(mobile: string): WithdrawalRecord[] {
   } catch {
     return [];
   }
+}
+
+// ─── CONTRACT JOBS ────────────────────────────────────────────────────────────
+export const CONTRACT_CATEGORIES = [
+  "JCB Operator",
+  "Excavator Operator",
+  "Crane Operator",
+  "Car Driver",
+  "Helper / Labour",
+  "Electrician",
+  "Plumber",
+  "Machine Mechanic",
+] as const;
+
+export type ContractDuration = "1 Month" | "4 Months" | "6 Months" | "1 Year";
+
+export interface ContractJob {
+  id: string;
+  contractorMobile: string;
+  contractorName: string;
+  category: string;
+  salaryPerMonth: number;
+  workLocation: string;
+  duration: ContractDuration;
+  accommodationProvided: boolean;
+  contactNumber: string;
+  description?: string;
+  postedAt: number;
+  status: "open" | "closed";
+}
+
+const CONTRACT_JOBS_KEY = "kaam_mitra_contract_jobs";
+
+export function saveContractJob(job: ContractJob): void {
+  try {
+    const all = loadAllContractJobs();
+    const idx = all.findIndex((j) => j.id === job.id);
+    if (idx >= 0) all[idx] = job;
+    else all.push(job);
+    localStorage.setItem(CONTRACT_JOBS_KEY, JSON.stringify(all));
+  } catch {}
+}
+
+export function loadAllContractJobs(): ContractJob[] {
+  try {
+    const raw = localStorage.getItem(CONTRACT_JOBS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+// ─── PREMIUM RECORDS ─────────────────────────────────────────────────────────
+export type PremiumPlanType =
+  | "worker_basic"
+  | "worker_priority"
+  | "contractor_premium";
+
+export interface PremiumRecord {
+  id: string;
+  mobile: string;
+  planType: PremiumPlanType;
+  amount: number;
+  txnId: string;
+  activatedAt: number;
+  expiresAt: number;
+}
+
+const PREMIUM_KEY = "kaam_mitra_premium_records";
+
+export function savePremiumRecord(r: PremiumRecord): void {
+  try {
+    const all = loadAllPremiumRecords();
+    all.push(r);
+    localStorage.setItem(PREMIUM_KEY, JSON.stringify(all));
+  } catch {}
+}
+
+export function loadAllPremiumRecords(): PremiumRecord[] {
+  try {
+    const raw = localStorage.getItem(PREMIUM_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function isPremiumContractor(mobile: string): boolean {
+  const now = Date.now();
+  return loadAllPremiumRecords().some(
+    (r) =>
+      r.mobile === mobile &&
+      r.planType === "contractor_premium" &&
+      r.expiresAt > now,
+  );
+}
+
+export function getMyPremiumPlan(mobile: string): PremiumRecord | null {
+  const now = Date.now();
+  return (
+    loadAllPremiumRecords()
+      .filter((r) => r.mobile === mobile && r.expiresAt > now)
+      .sort((a, b) => b.activatedAt - a.activatedAt)[0] ?? null
+  );
 }

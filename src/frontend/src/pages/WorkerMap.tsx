@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -13,7 +14,6 @@ import { toast } from "sonner";
 import type { Worker } from "../backend.d";
 import { useGetAllWorkers } from "../hooks/useQueries";
 import {
-  CATEGORIES,
   CATEGORY_EMOJIS,
   type WorkerExtended,
   formatLastSeen,
@@ -48,6 +48,22 @@ interface WorkerMarker {
   dist: number;
 }
 
+const MAP_FILTER_CATEGORIES = [
+  "all",
+  "JCB Operator",
+  "Crane Operator",
+  "Car Driver",
+  "Helper / Labour",
+  "Electrician",
+  "Painter",
+  "Bike Rider",
+  "Auto Rickshaw Driver",
+  "E-Rickshaw Driver",
+  "Taxi Driver",
+  "Mini Tempo Driver",
+  "Loading Auto Driver",
+];
+
 export function WorkerMap() {
   const navigate = useNavigate();
   const mapRef = useRef<HTMLDivElement>(null);
@@ -60,6 +76,8 @@ export function WorkerMap() {
   } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [pickupLocation, setPickupLocation] = useState("");
+  const [dropLocation, setDropLocation] = useState("");
 
   const { data: workers } = useGetAllWorkers(
     category !== "all" ? category : undefined,
@@ -119,7 +137,7 @@ export function WorkerMap() {
         12,
       );
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap contributors",
+        attribution: "\u00a9 OpenStreetMap contributors",
         maxZoom: 19,
       }).addTo(mapInstanceRef.current);
     } else {
@@ -143,7 +161,7 @@ export function WorkerMap() {
       iconAnchor: [8, 8],
     });
     L.marker([userCoords.lat, userCoords.lng], { icon: userIcon })
-      .bindPopup("<b>📍 Aapki Location</b>")
+      .bindPopup("<b>\ud83d\udccd Aapki Location</b>")
       .addTo(map);
 
     // Radius circle
@@ -182,33 +200,33 @@ export function WorkerMap() {
 
       const workerIcon = L.divIcon({
         className: "",
-        html: `<div data-ocid="worker_map.map_marker" style="width:28px;height:28px;border-radius:50%;background:${color};border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:bold">${CATEGORY_EMOJIS[worker.category] || "👷"}</div>`,
+        html: `<div data-ocid="worker_map.map_marker" style="width:28px;height:28px;border-radius:50%;background:${color};border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:bold">${CATEGORY_EMOJIS[worker.category] || "\ud83d\udc77"}</div>`,
         iconSize: [28, 28],
         iconAnchor: [14, 14],
       });
 
       const ratingHtml =
         ratingStats.count > 0
-          ? `<br><span style="color:#f59e0b">⭐ ${ratingStats.avg} (${ratingStats.count})</span>`
+          ? `<br><span style="color:#f59e0b">\u2b50 ${ratingStats.avg} (${ratingStats.count})</span>`
           : "";
-      const verHtml = verStatus === "verified" ? " ✅" : "";
+      const verHtml = verStatus === "verified" ? " \u2705" : "";
       const onlineHtml = onlineStat?.isOnline
-        ? "<span style='color:#16a34a'>● Online</span>"
+        ? "<span style='color:#16a34a'>\u25cf Online</span>"
         : onlineStat
-          ? `<span style='color:#9ca3af'>● ${formatLastSeen(onlineStat.lastSeen)}</span>`
+          ? `<span style='color:#9ca3af'>\u25cf ${formatLastSeen(onlineStat.lastSeen)}</span>`
           : "";
 
       const popupHtml = `
         <div style="min-width:160px">
           <b style="font-size:13px">${worker.name}${verHtml}</b><br>
           <span style="color:#6b7280;font-size:11px">${CATEGORY_EMOJIS[worker.category] || ""} ${worker.category}</span><br>
-          <span style="color:#6b7280;font-size:11px">📍 ${dist.toFixed(1)}km away</span><br>
-          <span style="font-size:11px">${isAvailable ? "<span style='color:#16a34a'>🟢 Available</span>" : "<span style='color:#dc2626'>🔴 Busy</span>"}</span>
+          <span style="color:#6b7280;font-size:11px">\ud83d\udccd ${dist.toFixed(1)}km away</span><br>
+          <span style="font-size:11px">${isAvailable ? "<span style='color:#16a34a'>\ud83d\udfe2 Available</span>" : "<span style='color:#dc2626'>\ud83d\udd34 Busy</span>"}</span>
           ${ratingHtml}<br>
           ${onlineHtml ? `<span style="font-size:10px">${onlineHtml}</span><br>` : ""}
           <div style="margin-top:8px;display:flex;gap:6px">
-            ${ext.mobile ? `<a href="tel:${ext.mobile}" style="background:#16a34a;color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:bold;text-decoration:none">📞 Call</a>` : ""}
-            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" style="background:#3b82f6;color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:bold;text-decoration:none">🧭 Directions</a>
+            ${ext.mobile ? `<a href="tel:${ext.mobile}" style="background:#16a34a;color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:bold;text-decoration:none">\ud83d\udcde Call</a>` : ""}
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" style="background:#3b82f6;color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:bold;text-decoration:none">\ud83e\uddad Directions</a>
           </div>
         </div>
       `;
@@ -229,6 +247,14 @@ export function WorkerMap() {
     };
   }, []);
 
+  function handleSearchNearby() {
+    if (!pickupLocation.trim()) {
+      toast.error("Pickup ya kaam ki jagah daalein");
+      return;
+    }
+    toast.success("Nearby workers map par dikh rahe hain");
+  }
+
   function handleRefresh() {
     if (!navigator.geolocation) return;
     setGpsLoading(true);
@@ -236,7 +262,7 @@ export function WorkerMap() {
       (pos) => {
         setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setGpsLoading(false);
-        toast.success("📍 Location update ho gayi!");
+        toast.success("\ud83d\udccd Location update ho gayi!");
       },
       () => {
         setGpsLoading(false);
@@ -261,10 +287,11 @@ export function WorkerMap() {
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {CATEGORIES.map((c) => (
+            {MAP_FILTER_CATEGORIES.map((c) => (
               <SelectItem key={c} value={c}>
-                {CATEGORY_EMOJIS[c]} {c}
+                {c === "all"
+                  ? "All Categories"
+                  : `${CATEGORY_EMOJIS[c] ?? ""} ${c}`}
               </SelectItem>
             ))}
           </SelectContent>
@@ -312,6 +339,34 @@ export function WorkerMap() {
         </Button>
       </div>
 
+      {/* Location Inputs */}
+      <div className="bg-card border-b border-border px-3 py-2 space-y-2 shrink-0">
+        <Input
+          className="h-9 text-xs"
+          placeholder="Pickup ya kaam ki jagah daalein"
+          value={pickupLocation}
+          onChange={(e) => setPickupLocation(e.target.value)}
+          data-ocid="worker_map.pickup_input"
+        />
+        <div className="flex gap-2">
+          <Input
+            className="h-9 text-xs flex-1"
+            placeholder="Drop ya site location daalein (optional)"
+            value={dropLocation}
+            onChange={(e) => setDropLocation(e.target.value)}
+            data-ocid="worker_map.drop_input"
+          />
+          <Button
+            size="sm"
+            className="h-9 px-3 text-xs bg-primary text-primary-foreground shrink-0"
+            onClick={handleSearchNearby}
+            data-ocid="worker_map.search_button"
+          >
+            Search Nearby
+          </Button>
+        </div>
+      </div>
+
       {/* Map container */}
       <div className="relative flex-1">
         {(!mapReady || gpsLoading) && (
@@ -326,17 +381,53 @@ export function WorkerMap() {
       </div>
 
       {/* Legend */}
-      <div className="bg-card border-t border-border px-4 py-2 flex items-center gap-4 text-xs text-muted-foreground shrink-0">
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-full bg-green-600 inline-block" />{" "}
-          Available
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-full bg-red-600 inline-block" /> Busy
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-full bg-blue-500 inline-block" /> You
-        </span>
+      <div className="bg-card border-t border-border px-3 py-2 shrink-0 space-y-2">
+        <div className="grid grid-cols-4 gap-1.5">
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/60 rounded px-1.5 py-0.5">
+            &#x1F69C; JCB
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/60 rounded px-1.5 py-0.5">
+            &#x1F3D7; Crane
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/60 rounded px-1.5 py-0.5">
+            &#x1F697; Driver
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/60 rounded px-1.5 py-0.5">
+            &#x1F4AA; Helper
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/60 rounded px-1.5 py-0.5">
+            &#x26A1; Electrician
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/60 rounded px-1.5 py-0.5">
+            &#x1F3A8; Painter
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/60 rounded px-1.5 py-0.5">
+            &#x1F3CD; Bike
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/60 rounded px-1.5 py-0.5">
+            &#x1F6FA; Auto
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/60 rounded px-1.5 py-0.5">
+            &#x1F6FB; E-Rick
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/60 rounded px-1.5 py-0.5">
+            &#x1F695; Taxi
+          </span>
+        </div>
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-3 rounded-full bg-green-600 inline-block" />{" "}
+            Available
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-3 rounded-full bg-red-600 inline-block" />{" "}
+            Busy
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-3 rounded-full bg-blue-500 inline-block" />{" "}
+            You
+          </span>
+        </div>
       </div>
     </div>
   );

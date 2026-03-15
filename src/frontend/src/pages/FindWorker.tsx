@@ -46,6 +46,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { Worker } from "../backend.d";
+import { BlueBadge } from "../components/BlueBadge";
 import { CategoryBadge } from "../components/CategoryBadge";
 import { useGetAllWorkers } from "../hooks/useQueries";
 import {
@@ -66,6 +67,7 @@ import {
   getUnreadCount,
   getVerificationRecord,
   getWorkerRatingStats,
+  isWorkerPaidVerified,
   isWorkerPaymentApproved,
   isWorkerVerified,
   loadAllExtendedById,
@@ -1038,6 +1040,13 @@ export function FindWorker() {
                       const verRec = getVerificationRecord(
                         selectedWorker.ext?.mobile ?? "",
                       );
+                      const mobile = selectedWorker.ext?.mobile ?? "";
+                      if (isWorkerPaidVerified(mobile))
+                        return (
+                          <span className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">
+                            <BlueBadge size="sm" /> Blue Verified Worker
+                          </span>
+                        );
                       if (verRec?.status === "verified")
                         return (
                           <span className="text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">

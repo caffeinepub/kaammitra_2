@@ -36,6 +36,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangle,
   Bell,
@@ -52,6 +53,7 @@ import {
   Plus,
   RefreshCw,
   Settings,
+  ShieldAlert,
   ShieldCheck,
   Tag,
   Trash2,
@@ -71,6 +73,7 @@ import {
   loadAllEscrowRecords,
   loadAllExtendedById,
   loadAllPaymentRecords,
+  loadAllPremiumRecords,
   loadAllVerificationRecords,
   saveExtendedById,
   savePaymentRecord,
@@ -3758,6 +3761,368 @@ function PaymentsSection() {
   );
 }
 
+function PlansSection() {
+  const records = loadAllPremiumRecords();
+  const now = Date.now();
+
+  const totalRevenue = records.reduce((s, r) => s + r.amount, 0);
+  const activePremiumContractors = records.filter(
+    (r) => r.planType === "contractor_premium" && r.expiresAt > now,
+  ).length;
+  const workerVerifications = records.filter(
+    (r) => r.planType !== "contractor_premium",
+  ).length;
+
+  return (
+    <div className="space-y-4">
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-2xl bg-violet-50 border border-violet-200 p-3 text-center">
+          <p className="text-xl font-black text-violet-700">
+            ₹{totalRevenue.toLocaleString()}
+          </p>
+          <p className="text-[10px] text-violet-600 font-semibold mt-0.5">
+            Total Revenue
+          </p>
+        </div>
+        <div className="rounded-2xl bg-blue-50 border border-blue-200 p-3 text-center">
+          <p className="text-xl font-black text-blue-700">
+            {activePremiumContractors}
+          </p>
+          <p className="text-[10px] text-blue-600 font-semibold mt-0.5">
+            Premium Contractors
+          </p>
+        </div>
+        <div className="rounded-2xl bg-green-50 border border-green-200 p-3 text-center">
+          <p className="text-xl font-black text-green-700">
+            {workerVerifications}
+          </p>
+          <p className="text-[10px] text-green-600 font-semibold mt-0.5">
+            Worker Plans
+          </p>
+        </div>
+      </div>
+
+      {/* Records List */}
+      <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+        All Plan Records
+      </h3>
+      {records.length === 0 ? (
+        <div
+          data-ocid="admin.plans.empty_state"
+          className="text-center py-10 bg-muted/30 rounded-2xl border border-border"
+        >
+          <p className="text-3xl mb-2">💳</p>
+          <p className="font-semibold text-foreground text-sm">
+            Koi premium record nahi abhi
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {records.map((r, i) => {
+            const isActive = r.expiresAt > now;
+            return (
+              <div
+                key={r.id}
+                data-ocid={`admin.plans.item.${i + 1}`}
+                className="rounded-xl border border-border p-3 bg-card"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-semibold text-sm text-foreground">
+                      {r.mobile}
+                    </p>
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {r.planType.replace(/_/g, " ")}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      TXN: {r.txnId}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-foreground">₹{r.amount}</p>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        isActive
+                          ? "bg-green-100 text-green-700"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {isActive ? "Active" : "Expired"}
+                    </span>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      Exp: {new Date(r.expiresAt).toLocaleDateString("en-IN")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FemaleProfilesSection() {
+  const [profiles] = useState([
+    {
+      name: "Priya Sharma",
+      category: "Office Staff",
+      city: "Delhi",
+      submitted: "12 Mar 2026",
+      status: "Verified",
+    },
+    {
+      name: "Sunita Devi",
+      category: "Maid / Helper",
+      city: "Mumbai",
+      submitted: "11 Mar 2026",
+      status: "Pending",
+    },
+    {
+      name: "Neha Gupta",
+      category: "Office Staff",
+      city: "Noida",
+      submitted: "10 Mar 2026",
+      status: "Pending",
+    },
+    {
+      name: "Rekha Kumari",
+      category: "Maid / Helper",
+      city: "Patna",
+      submitted: "09 Mar 2026",
+      status: "Verified",
+    },
+    {
+      name: "Anjali Singh",
+      category: "Private Jobs",
+      city: "Lucknow",
+      submitted: "08 Mar 2026",
+      status: "Rejected",
+    },
+    {
+      name: "Kavita Yadav",
+      category: "Other Skills",
+      city: "Jaipur",
+      submitted: "07 Mar 2026",
+      status: "Pending",
+    },
+  ]);
+  const [statuses, setStatuses] = useState<Record<number, string>>(() =>
+    Object.fromEntries(profiles.map((_, i) => [i, profiles[i].status])),
+  );
+  function setStatus(i: number, s: string) {
+    setStatuses((prev) => ({ ...prev, [i]: s }));
+  }
+  return (
+    <div data-ocid="admin.female_profiles.section" className="space-y-4">
+      <div className="bg-pink-50 border border-pink-200 rounded-xl p-3">
+        <p className="text-xs text-pink-800 font-medium">
+          ud83dudd12 Phone numbers and ID data are encrypted and visible to
+          admin only.
+        </p>
+      </div>
+      <div className="space-y-3">
+        {profiles.map((p, i) => (
+          <div
+            key={p.name}
+            data-ocid={`admin.female_profiles.item.${i + 1}`}
+            className="border border-border rounded-xl p-3 space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-sm">{p.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {p.category} u00b7 {p.city}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Submitted: {p.submitted}
+                </p>
+              </div>
+              <span
+                className={`text-xs font-bold px-2 py-1 rounded-full ${
+                  statuses[i] === "Verified"
+                    ? "bg-green-100 text-green-800"
+                    : statuses[i] === "Pending"
+                      ? "bg-yellow-100 text-yellow-800"
+                      : "bg-red-100 text-red-800"
+                }`}
+              >
+                {statuses[i]}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="flex-1 h-7 text-xs bg-green-600 hover:bg-green-700 text-white"
+                onClick={() => setStatus(i, "Verified")}
+                data-ocid={`admin.female_profiles.verify.button.${i + 1}`}
+              >
+                u2705 Verify
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 h-7 text-xs border-red-200 text-red-700 hover:bg-red-50"
+                onClick={() => setStatus(i, "Rejected")}
+                data-ocid={`admin.female_profiles.reject.button.${i + 1}`}
+              >
+                u274c Reject
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 h-7 text-xs border-gray-200 text-gray-700 hover:bg-gray-50"
+                onClick={() => {
+                  void profiles.filter((_, j) => j !== i);
+                }}
+                data-ocid={`admin.female_profiles.delete_button.${i + 1}`}
+              >
+                ud83duddd1 Remove
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── AI Moderation Admin Section ───────────────────────────────────────────────────
+
+function AIModerationAdminSection() {
+  const navigate = useNavigate();
+  const [sensitivity, setSensitivity] = useState(() => {
+    try {
+      const s = localStorage.getItem("kaam_mitra_mod_settings");
+      return s ? JSON.parse(s).sensitivityLevel : "medium";
+    } catch {
+      return "medium";
+    }
+  });
+
+  const flaggedItems: Array<{
+    id: string;
+    userName: string;
+    section: string;
+    riskLevel: string;
+    content: string;
+  }> = (() => {
+    try {
+      const s = localStorage.getItem("kaam_mitra_flagged_items");
+      return s ? JSON.parse(s).slice(0, 5) : [];
+    } catch {
+      return [];
+    }
+  })();
+
+  const pending = flaggedItems.filter(
+    (i: any) => i.status === "pending",
+  ).length;
+  const highRisk = flaggedItems.filter(
+    (i: any) => i.riskLevel === "high",
+  ).length;
+  const blocked = flaggedItems.filter((i: any) => i.action === "block").length;
+
+  const saveSensitivity = (level: string) => {
+    setSensitivity(level);
+    try {
+      const existing = JSON.parse(
+        localStorage.getItem("kaam_mitra_mod_settings") || "{}",
+      );
+      localStorage.setItem(
+        "kaam_mitra_mod_settings",
+        JSON.stringify({ ...existing, sensitivityLevel: level }),
+      );
+      toast.success("Sensitivity updated!");
+    } catch {
+      /* ignore */
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Quick stats */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-3 text-center">
+          <p className="text-xl font-black text-yellow-700">{pending}</p>
+          <p className="text-[10px] text-yellow-600 font-semibold">Pending</p>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-3 text-center">
+          <p className="text-xl font-black text-red-700">{highRisk}</p>
+          <p className="text-[10px] text-red-600 font-semibold">High Risk</p>
+        </div>
+        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-3 text-center">
+          <p className="text-xl font-black text-orange-700">{blocked}</p>
+          <p className="text-[10px] text-orange-600 font-semibold">Blocked</p>
+        </div>
+      </div>
+
+      {/* Quick sensitivity */}
+      <div className="space-y-2">
+        <p className="text-xs font-bold">Quick Sensitivity:</p>
+        <div className="flex gap-2">
+          {["low", "medium", "high"].map((level) => (
+            <button
+              key={level}
+              type="button"
+              onClick={() => saveSensitivity(level)}
+              className={`flex-1 py-2 rounded-xl text-xs font-bold capitalize transition-all ${sensitivity === level ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+            >
+              {level}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Last 5 flagged */}
+      <div>
+        <p className="text-xs font-bold mb-2">Recent Flagged Content:</p>
+        {flaggedItems.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-4">
+            Koi flagged content nahi
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {flaggedItems.map((item: any) => (
+              <div
+                key={item.id}
+                className="bg-muted/50 rounded-xl p-2.5 flex items-start justify-between gap-2"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold truncate">
+                    {item.userName}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {item.content?.slice(0, 60)}...
+                  </p>
+                  <span
+                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${item.riskLevel === "high" ? "bg-red-100 text-red-700" : item.riskLevel === "medium" ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"}`}
+                  >
+                    {item.riskLevel}
+                  </span>
+                </div>
+                <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-md flex-shrink-0">
+                  {item.section}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Button
+        className="w-full rounded-xl h-11"
+        onClick={() => navigate({ to: "/ai-moderation" })}
+      >
+        <ShieldAlert className="w-4 h-4 mr-2" />
+        Full AI Moderation Dashboard
+      </Button>
+    </div>
+  );
+}
+
 export default function AdminPanel() {
   const { actor, isFetching } = useActor();
   const [isLoggedIn, setIsLoggedIn] = useState(
@@ -3891,6 +4256,9 @@ export default function AdminPanel() {
     { id: "sheets", label: "Sheets", icon: Link2 },
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "payments", label: "Payments", icon: IndianRupee },
+    { id: "plans", label: "Plans 💳", icon: IndianRupee },
+    { id: "female_profiles", label: "👩 Female", icon: Users },
+    { id: "ai_mod", label: "🛡️ AI", icon: ShieldAlert },
   ];
 
   // Check if logged-in user is super admin (by session stored mobile or default)
@@ -3912,6 +4280,9 @@ export default function AdminPanel() {
     dashboard: "Admin Dashboard",
     payments: "Payment Management",
     superadmin: "Super Admin Management",
+    plans: "Premium Plans & Monetization",
+    female_profiles: "Female Worker Profiles",
+    ai_mod: "AI Moderation Dashboard",
   };
 
   return (
@@ -3979,6 +4350,9 @@ export default function AdminPanel() {
                 {activeTab === "superadmin" && isSuperAdmin && (
                   <SuperAdminSection />
                 )}
+                {activeTab === "plans" && <PlansSection />}
+                {activeTab === "female_profiles" && <FemaleProfilesSection />}
+                {activeTab === "ai_mod" && <AIModerationAdminSection />}
               </motion.div>
             </AnimatePresence>
           )}
@@ -3988,7 +4362,7 @@ export default function AdminPanel() {
       {/* Bottom nav - 8 items */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border shadow-lg">
         <div
-          className={`max-w-[520px] mx-auto grid ${isSuperAdmin ? "grid-cols-10" : "grid-cols-9"}`}
+          className={`max-w-[520px] mx-auto grid ${isSuperAdmin ? "grid-cols-12" : "grid-cols-11"}`}
         >
           {allNavItems.map(({ id, label, icon: Icon }) => (
             <button

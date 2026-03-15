@@ -7,22 +7,18 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import {
-  ArrowLeft,
-  Briefcase,
-  CalendarDays,
-  HomeIcon,
-  Map as MapIcon,
-  Phone,
-  PlusCircle,
-  Settings,
-  Users,
-} from "lucide-react";
-import { useEffect } from "react";
+import { Bell, Menu, Search, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { MainMenu } from "./components/MainMenu";
 import { setOnlineStatus } from "./lib/constants";
+import AIModerationDashboard from "./pages/AIModerationDashboard";
 import AdminPanel from "./pages/AdminPanel";
+import { AdvancedSettings } from "./pages/AdvancedSettings";
+import { AutoRickshaw } from "./pages/AutoRickshaw";
+import { BikeRider } from "./pages/BikeRider";
 import { BookingCalendar } from "./pages/BookingCalendar";
 import { BookingHistory } from "./pages/BookingHistory";
 import { Contact } from "./pages/Contact";
@@ -30,13 +26,25 @@ import { ContractorDashboard } from "./pages/ContractorDashboard";
 import { ContractorRegister } from "./pages/ContractorRegister";
 import { CreateProfile } from "./pages/CreateProfile";
 import { EscrowScreen } from "./pages/EscrowScreen";
+import { FemaleHub } from "./pages/FemaleHub";
 import { FindWork } from "./pages/FindWork";
 import { FindWorker } from "./pages/FindWorker";
 import { Home } from "./pages/Home";
+import { LongTermHiring } from "./pages/LongTermHiring";
+import { MinWage } from "./pages/MinWage";
+import MitraAI from "./pages/MitraAI";
+import { NearbyJobs } from "./pages/NearbyJobs";
+import { OperatorPoster } from "./pages/OperatorPoster";
 import { PaymentHistory } from "./pages/PaymentHistory";
 import { PaymentScreen } from "./pages/PaymentScreen";
+import { PostContractJob } from "./pages/PostContractJob";
 import { PostJob } from "./pages/PostJob";
+import { PremiumPlans } from "./pages/PremiumPlans";
+import { ScanWorker } from "./pages/ScanWorker";
 import { Settings as SettingsPage } from "./pages/Settings";
+import { TransportServices } from "./pages/TransportServices";
+import { VerifyAndPay } from "./pages/VerifyAndPay";
+import VoiceSearch from "./pages/VoiceSearch";
 import { WorkerIDCard } from "./pages/WorkerIDCard";
 import { WorkerMap } from "./pages/WorkerMap";
 import { WorkerVerification } from "./pages/WorkerVerification";
@@ -51,22 +59,26 @@ const queryClient = new QueryClient({
   },
 });
 
-const NAV_ITEMS = [
-  { path: "/find-work", icon: Briefcase, label: "Kaam" },
-  { path: "/find-worker", icon: Users, label: "Worker" },
-  { path: "/post-job", icon: PlusCircle, label: "Job Do" },
-  { path: "/contact", icon: Phone, label: "Contact" },
-  { path: "/worker-map", icon: MapIcon, label: "Map" },
-  { path: "/booking-history", icon: CalendarDays, label: "Bookings" },
+const TOP_TABS = [
+  { path: "/" as const, label: "Home", ocid: "header.home_tab" },
+  {
+    path: "/find-worker" as const,
+    label: "Workers",
+    ocid: "header.workers_tab",
+  },
+  { path: "/find-work" as const, label: "Jobs", ocid: "header.jobs_tab" },
 ];
 
 function LayoutWrapper() {
   const routerState = useRouterState();
+  const navigate = useNavigate();
   const currentPath = routerState.location.pathname;
-  const isHome = currentPath === "/";
   const isAdmin = currentPath === "/admin";
+  const isPosterPage = currentPath === "/operator-poster";
+  const isVoiceSearch = currentPath === "/voice-search";
 
-  // Online status on app open
+  const [menuOpen, setMenuOpen] = useState(false);
+
   useEffect(() => {
     try {
       const profile = localStorage.getItem("kaam_mitra_my_extended");
@@ -91,59 +103,176 @@ function LayoutWrapper() {
     return () => window.removeEventListener("beforeunload", handleUnload);
   }, []);
 
-  if (isAdmin) {
-    return (
-      <>
-        <Outlet />
-      </>
-    );
+  if (isAdmin || isPosterPage || isVoiceSearch) {
+    return <Outlet />;
   }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-40 bg-primary text-primary-foreground shadow-md">
-        <div className="max-w-[520px] mx-auto flex items-center gap-3 px-4 py-3">
-          {!isHome && (
-            <button
-              type="button"
-              onClick={() => window.history.back()}
-              className="p-2 rounded-xl hover:bg-white/20 transition-colors -ml-2 touch-btn"
-              aria-label="Back"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-          )}
+      {/* Header */}
+      <header
+        className="sticky top-0 z-40 bg-white"
+        style={{
+          boxShadow: "0 1px 8px rgba(0,0,0,0.08)",
+          fontFamily: "'Poppins', sans-serif",
+        }}
+        data-ocid="header.navbar"
+      >
+        {/* Top Row: Logo + Right Icons */}
+        <div
+          className="max-w-[520px] mx-auto"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "10px 16px 0 16px",
+          }}
+        >
           <Link
             to="/"
-            className="flex items-center gap-2 flex-1 min-w-0 text-primary-foreground"
+            data-ocid="header.logo_link"
+            style={{
+              color: "#E65100",
+              fontSize: "22px",
+              fontWeight: 800,
+              letterSpacing: "-0.5px",
+              textDecoration: "none",
+              lineHeight: 1,
+              fontFamily: "'Poppins', sans-serif",
+            }}
           >
-            <span className="text-2xl font-display font-black tracking-tight leading-none">
-              KaamMitra
-            </span>
-            {isHome && (
-              <span className="text-xs font-body opacity-80 truncate hidden sm:block">
-                Apna Kaam, Apni Pehchaan
-              </span>
-            )}
+            KaamMitra
           </Link>
-          {!isHome && (
-            <Link
-              to="/"
-              className="p-2 rounded-xl hover:bg-white/20 transition-colors text-primary-foreground"
-              aria-label="Home"
+
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/find-work" })}
+              aria-label="Search jobs"
+              data-ocid="header.search_button"
+              style={{
+                background: "#f0f2f5",
+                width: "36px",
+                height: "36px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "none",
+                cursor: "pointer",
+                color: "#555",
+              }}
             >
-              <HomeIcon className="w-5 h-5" />
-            </Link>
-          )}
-          <Link
-            to="/admin"
-            data-ocid="header.admin_panel_button"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 active:bg-white/40 transition-colors text-primary-foreground text-sm font-semibold"
-            aria-label="Admin Panel"
+              <Search size={16} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/" })}
+              aria-label="Notifications"
+              data-ocid="header.notifications_button"
+              style={{
+                background: "#f0f2f5",
+                width: "36px",
+                height: "36px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "none",
+                cursor: "pointer",
+                color: "#555",
+              }}
+            >
+              <Bell size={16} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/settings" })}
+              aria-label="Profile"
+              data-ocid="header.profile_button"
+              style={{
+                background: "#f0f2f5",
+                width: "36px",
+                height: "36px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "none",
+                cursor: "pointer",
+                color: "#555",
+              }}
+            >
+              <User size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Bottom Tab Row: text-only centered tabs */}
+        <div
+          className="max-w-[520px] mx-auto"
+          style={{
+            display: "flex",
+            alignItems: "stretch",
+            justifyContent: "center",
+            padding: "0 4px",
+          }}
+        >
+          {TOP_TABS.map((tab) => {
+            const isActive = currentPath === tab.path;
+            return (
+              <Link
+                key={tab.path}
+                to={tab.path}
+                data-ocid={tab.ocid}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "10px 4px",
+                  textDecoration: "none",
+                  color: isActive ? "#E65100" : "#65676b",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  fontFamily: "'Poppins', sans-serif",
+                  borderBottom: isActive
+                    ? "3px solid #E65100"
+                    : "3px solid transparent",
+                  transition: "color 0.15s, border-color 0.15s",
+                }}
+              >
+                {tab.label}
+              </Link>
+            );
+          })}
+          {/* Menu tab — text only */}
+          <button
+            type="button"
+            data-ocid="header.menu_tab"
+            onClick={() => setMenuOpen(true)}
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "4px",
+              padding: "10px 4px",
+              background: "none",
+              border: "none",
+              borderBottom: "3px solid transparent",
+              cursor: "pointer",
+              color: "#65676b",
+              fontSize: "13px",
+              fontWeight: 700,
+              fontFamily: "'Poppins', sans-serif",
+            }}
           >
-            <Settings className="w-4 h-4" />
-            <span className="text-xs font-bold">Admin</span>
-          </Link>
+            <Menu size={14} strokeWidth={2.5} />
+            <span>Menu</span>
+          </button>
         </div>
       </header>
 
@@ -151,31 +280,132 @@ function LayoutWrapper() {
         <Outlet />
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border shadow-lg">
-        <div className="max-w-[520px] mx-auto grid grid-cols-6">
-          {NAV_ITEMS.map(({ path, icon: Icon, label }) => {
-            const active = currentPath === path;
-            return (
-              <Link
-                key={path}
-                to={path}
-                className={`flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-                  active
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Icon className={`w-5 h-5 ${active ? "stroke-[2.5]" : ""}`} />
-                <span
-                  className={`text-[10px] font-semibold ${active ? "text-primary" : ""}`}
-                >
-                  {label}
-                </span>
-              </Link>
-            );
-          })}
+      {/* Bottom Nav */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200"
+        style={{ boxShadow: "0 -2px 12px rgba(0,0,0,0.08)" }}
+        data-ocid="nav.bottom_bar"
+      >
+        <div
+          className="max-w-[520px] mx-auto"
+          style={{ display: "flex", alignItems: "center", height: "56px" }}
+        >
+          <Link
+            to="/"
+            data-ocid="nav.home_link"
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              textDecoration: "none",
+              color: currentPath === "/" ? "#E65100" : "#888",
+              fontSize: "10px",
+              fontWeight: 600,
+              fontFamily: "'Poppins', sans-serif",
+            }}
+          >
+            <span style={{ fontSize: "20px", lineHeight: 1 }}>🏠</span>
+            <span>Home</span>
+          </Link>
+
+          <Link
+            to="/find-worker"
+            data-ocid="nav.workers_link"
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              textDecoration: "none",
+              color: currentPath === "/find-worker" ? "#E65100" : "#888",
+              fontSize: "10px",
+              fontWeight: 600,
+              fontFamily: "'Poppins', sans-serif",
+            }}
+          >
+            <span style={{ fontSize: "20px", lineHeight: 1 }}>👷</span>
+            <span>Workers</span>
+          </Link>
+
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/post-job" })}
+              data-ocid="nav.post_job_button"
+              aria-label="Post a job"
+              style={{
+                width: "50px",
+                height: "50px",
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #FF6F00, #E65100)",
+                border: "3px solid white",
+                boxShadow: "0 4px 14px rgba(230, 81, 0, 0.45)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                marginTop: "-18px",
+                fontSize: "22px",
+              }}
+            >
+              ➕
+            </button>
+          </div>
+
+          <Link
+            to="/find-work"
+            data-ocid="nav.jobs_link"
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              textDecoration: "none",
+              color: currentPath === "/find-work" ? "#E65100" : "#888",
+              fontSize: "10px",
+              fontWeight: 600,
+              fontFamily: "'Poppins', sans-serif",
+            }}
+          >
+            <span style={{ fontSize: "20px", lineHeight: 1 }}>💼</span>
+            <span>Jobs</span>
+          </Link>
+
+          <Link
+            to="/settings"
+            data-ocid="nav.profile_link"
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              textDecoration: "none",
+              color: currentPath === "/settings" ? "#E65100" : "#888",
+              fontSize: "10px",
+              fontWeight: 600,
+              fontFamily: "'Poppins', sans-serif",
+            }}
+          >
+            <span style={{ fontSize: "20px", lineHeight: 1 }}>👤</span>
+            <span>Profile</span>
+          </Link>
         </div>
       </nav>
+
+      <MainMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <Toaster />
     </div>
   );
 }
@@ -246,7 +476,6 @@ const workerMapRoute = createRoute({
   path: "/worker-map",
   component: WorkerMap,
 });
-
 const bookingCalendarRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/booking-calendar/$workerId",
@@ -257,7 +486,6 @@ const bookingHistoryRoute = createRoute({
   path: "/booking-history",
   component: BookingHistory,
 });
-
 const paymentRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/payment",
@@ -273,10 +501,90 @@ const workerWalletRoute = createRoute({
   path: "/worker-wallet",
   component: WorkerWallet,
 });
+const autoRickshawRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/auto-rickshaw",
+  component: AutoRickshaw,
+});
+const bikeRiderRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/bike-rider",
+  component: BikeRider,
+});
+const transportServicesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/transport-services",
+  component: TransportServices,
+});
 const escrowRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/escrow",
   component: EscrowScreen,
+});
+const longTermHiringRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/long-term-hiring",
+  component: LongTermHiring,
+});
+const postContractJobRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/post-contract-job",
+  component: PostContractJob,
+});
+const premiumPlansRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/premium-plans",
+  component: PremiumPlans,
+});
+const verifyAndPayRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/verify-and-pay",
+  component: VerifyAndPay,
+});
+const scanWorkerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/scan-worker",
+  component: ScanWorker,
+});
+const operatorPosterRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/operator-poster",
+  component: OperatorPoster,
+});
+const advancedSettingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/advanced-settings",
+  component: AdvancedSettings,
+});
+const minWageRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/min-wage",
+  component: MinWage,
+});
+const nearbyJobsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/nearby-jobs",
+  component: NearbyJobs,
+});
+const femaleHubRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/female-hub",
+  component: FemaleHub,
+});
+const aiModerationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/ai-moderation",
+  component: AIModerationDashboard,
+});
+const mitraAIRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/mitra-ai",
+  component: MitraAI,
+});
+const voiceSearchRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/voice-search",
+  component: VoiceSearch,
 });
 
 const routeTree = rootRoute.addChildren([
@@ -298,7 +606,23 @@ const routeTree = rootRoute.addChildren([
   paymentRoute,
   paymentHistoryRoute,
   workerWalletRoute,
+  autoRickshawRoute,
+  bikeRiderRoute,
+  transportServicesRoute,
   escrowRoute,
+  longTermHiringRoute,
+  postContractJobRoute,
+  premiumPlansRoute,
+  verifyAndPayRoute,
+  scanWorkerRoute,
+  operatorPosterRoute,
+  advancedSettingsRoute,
+  minWageRoute,
+  nearbyJobsRoute,
+  femaleHubRoute,
+  aiModerationRoute,
+  mitraAIRoute,
+  voiceSearchRoute,
 ]);
 
 const router = createRouter({ routeTree });
@@ -313,7 +637,6 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
-      <Toaster position="top-center" richColors />
     </QueryClientProvider>
   );
 }

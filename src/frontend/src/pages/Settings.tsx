@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -31,42 +32,52 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "@tanstack/react-router";
 import {
-  Activity,
   AlertTriangle,
   Bell,
+  Bookmark,
+  Briefcase,
   Camera,
   CheckCircle2,
-  ChevronDown,
   ChevronRight,
-  ChevronUp,
   Clock,
-  CreditCard,
+  Copy,
   Download,
   Eye,
   EyeOff,
+  Facebook,
+  Gift,
   Globe,
   HelpCircle,
-  History,
+  Info,
   Lock,
   LogOut,
   Mail,
   MapPin,
   MessageSquare,
   Phone,
+  Send,
+  Settings2,
+  Share2,
   Shield,
   ShieldCheck,
+  Star,
   Trash2,
   User,
+  Users,
   Wifi,
+  Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  MAIN_CATEGORIES,
+  CATEGORIES,
   getMyExtendedProfile,
   saveMyExtendedProfile,
 } from "../lib/constants";
 
+// ──────────────────────────────────────────────
+//  Helpers
+// ──────────────────────────────────────────────
 const INDIA_STATES: Record<string, string[]> = {
   "Uttar Pradesh": [
     "Lucknow",
@@ -82,29 +93,21 @@ const INDIA_STATES: Record<string, string[]> = {
   Delhi: ["New Delhi", "Dwarka", "Rohini", "Saket", "Lajpat Nagar"],
   Rajasthan: ["Jaipur", "Jodhpur", "Udaipur", "Kota", "Ajmer", "Bikaner"],
   Gujarat: ["Ahmedabad", "Surat", "Vadodara", "Rajkot", "Gandhinagar"],
-  Haryana: ["Gurugram", "Faridabad", "Panipat", "Ambala", "Karnal", "Hisar"],
+  Haryana: ["Gurugram", "Faridabad", "Panipat", "Ambala", "Karnal"],
   Punjab: ["Ludhiana", "Amritsar", "Jalandhar", "Patiala", "Bathinda"],
   "Madhya Pradesh": ["Bhopal", "Indore", "Jabalpur", "Gwalior", "Ujjain"],
   Bihar: ["Patna", "Gaya", "Muzaffarpur", "Bhagalpur", "Darbhanga"],
-  Karnataka: ["Bengaluru", "Mysuru", "Hubli", "Mangaluru", "Belgaum"],
-  "Tamil Nadu": [
-    "Chennai",
-    "Coimbatore",
-    "Madurai",
-    "Tiruchirappalli",
-    "Salem",
-  ],
-  Telangana: ["Hyderabad", "Warangal", "Nizamabad", "Karimnagar"],
-  Jharkhand: ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro"],
-  Odisha: ["Bhubaneswar", "Cuttack", "Rourkela", "Sambalpur"],
-  "West Bengal": ["Kolkata", "Howrah", "Durgapur", "Asansol", "Siliguri"],
+  Karnataka: ["Bengaluru", "Mysuru", "Hubli", "Mangaluru"],
+  "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli"],
+  Telangana: ["Hyderabad", "Warangal", "Nizamabad"],
+  Jharkhand: ["Ranchi", "Jamshedpur", "Dhanbad"],
+  "West Bengal": ["Kolkata", "Howrah", "Durgapur", "Asansol"],
 };
 
-function loadProfile() {
+function loadProfile(): Record<string, string> | null {
   try {
     const raw = localStorage.getItem("workerProfile");
-    if (!raw) return null;
-    return JSON.parse(raw) as Record<string, string>;
+    return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
@@ -117,114 +120,84 @@ function saveProfile(data: Record<string, string>) {
     fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, type: "profile_update" }),
+      body: JSON.stringify({ action: "UPDATE_PROFILE", data }),
     }).catch(() => {});
   }
 }
 
-interface SectionProps {
-  id: string;
-  icon: React.ReactNode;
-  title: string;
-  subtitle?: string;
-  isOpen: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-  badge?: React.ReactNode;
-}
-
-function Section({
-  icon,
-  title,
-  subtitle,
-  isOpen,
-  onToggle,
-  children,
-  badge,
-}: SectionProps) {
-  return (
-    <Card className="overflow-hidden border border-border shadow-sm">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center gap-3 p-4 text-left hover:bg-muted/40 transition-colors active:bg-muted/60"
-      >
-        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 text-primary">
-          {icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold text-foreground text-sm">{title}</div>
-          {subtitle && (
-            <div className="text-xs text-muted-foreground mt-0.5">
-              {subtitle}
-            </div>
-          )}
-        </div>
-        {badge && <div className="shrink-0">{badge}</div>}
-        <div className="shrink-0 text-muted-foreground ml-1">
-          {isOpen ? (
-            <ChevronUp className="w-4 h-4" />
-          ) : (
-            <ChevronDown className="w-4 h-4" />
-          )}
-        </div>
-      </button>
-      {isOpen && (
-        <div className="px-4 pb-4 border-t border-border/50 pt-4">
-          {children}
-        </div>
-      )}
-    </Card>
-  );
-}
-
 const MOCK_LOGIN_HISTORY = [
   {
+    device: "Samsung Galaxy A52",
     date: "14 Mar 2026, 10:32 AM",
-    device: "Chrome on Android",
+    location: "Lucknow, UP",
+  },
+  {
+    device: "Chrome on Windows",
+    date: "12 Mar 2026, 06:15 PM",
     location: "Delhi",
   },
   {
-    date: "12 Mar 2026, 06:15 PM",
-    device: "Firefox on Android",
-    location: "Noida",
-  },
-  {
-    date: "10 Mar 2026, 09:00 AM",
-    device: "Chrome on Android",
-    location: "Lucknow",
+    device: "Samsung Galaxy A52",
+    date: "10 Mar 2026, 08:45 AM",
+    location: "Lucknow, UP",
   },
 ];
 
-const MOCK_ACTIVITY = [
-  { action: "Profile Updated", time: "14 Mar 2026, 10:35 AM" },
-  {
-    action: "Job Applied – JCB Operator (Delhi)",
-    time: "13 Mar 2026, 04:20 PM",
-  },
-  { action: "Booking Confirmed – 3 Days", time: "12 Mar 2026, 02:10 PM" },
-  { action: "Payment Made – ₹50 Registration", time: "11 Mar 2026, 11:00 AM" },
-  { action: "Worker Verified ✅", time: "10 Mar 2026, 09:15 AM" },
-];
+// ──────────────────────────────────────────────
+//  Row helper
+// ──────────────────────────────────────────────
+function SwitchRow({
+  label,
+  description,
+  checked,
+  onCheckedChange,
+  ocid,
+}: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+  ocid: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3 border-b border-border/40 last:border-0">
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        {description && (
+          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+        )}
+      </div>
+      <Switch
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        data-ocid={ocid}
+        className="shrink-0"
+      />
+    </div>
+  );
+}
 
+// ──────────────────────────────────────────────
+//  Main Component
+// ──────────────────────────────────────────────
 export function Settings() {
   const navigate = useNavigate();
   const profile = loadProfile();
   const extProfile = getMyExtendedProfile();
-  const [openSection, setOpenSection] = useState<string | null>(null);
 
-  // ── Profile Management ──
+  // ── Profile ──
   const [epName, setEpName] = useState(profile?.name || "");
-  const [epCategory, _setEpCategory] = useState(profile?.category || "");
-  const [epExperience, _setEpExperience] = useState(profile?.experience || "");
-  const [epState, _setEpState] = useState(profile?.state || "");
-  const [epCity, _setEpCity] = useState(profile?.city || "");
-  const [epPhotoPreview, setEpPhotoPreview] = useState(
-    profile?.profilePhoto || "",
+  const [epCategory, setEpCategory] = useState(profile?.category || "");
+  const [epExperience, setEpExperience] = useState(profile?.experience || "");
+  const [epState, setEpState] = useState(profile?.state || "");
+  const [epCity, setEpCity] = useState(profile?.city || "");
+  const [epPhotoPreview, setEpPhotoPreview] = useState<string | null>(
+    profile?.photo || extProfile?.profilePhotoBase64 || null,
   );
-  const [epGender, _setEpGender] = useState(extProfile?.gender || "");
+  const [epEmail, setEpEmail] = useState(profile?.email || "");
   const photoRef = useRef<HTMLInputElement>(null);
 
+  // ── Mobile OTP ──
   const [mobileNum, setMobileNum] = useState(profile?.mobile || "");
   const [mobileOtp, setMobileOtp] = useState("");
   const [generatedOtp, setGeneratedOtp] = useState("");
@@ -233,54 +206,53 @@ export function Settings() {
     profile?.mobileVerified === "true",
   );
 
-  const [emailInput, setEmailInput] = useState(profile?.email || "");
+  // ── Email ──
   const [emailSent, setEmailSent] = useState(false);
 
+  // ── Location ──
   const [locState, setLocState] = useState(profile?.state || "");
   const [locCity, setLocCity] = useState(profile?.city || "");
   const [gpsLoading, setGpsLoading] = useState(false);
 
-  const [availability, setAvailability] = useState(
-    profile?.availability || "available",
-  );
+  // ── Availability ──
+  const [availability, setAvailability] = useState<
+    "available" | "busy" | "offline"
+  >((profile?.availability as "available" | "busy" | "offline") || "available");
 
-  // ── Account & Security ──
+  // ── Password ──
   const [cpCurrent, setCpCurrent] = useState("");
   const [cpNew, setCpNew] = useState("");
   const [cpConfirm, setCpConfirm] = useState("");
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  // ── Security ──
   const [twoFAEnabled, setTwoFAEnabled] = useState(false);
-
-  // ── Privacy ──
+  const [showPhoneNumber, setShowPhoneNumber] = useState(true);
   const [profileVisibility, setProfileVisibility] = useState<
-    "public" | "private"
+    "public" | "private" | "contacts"
   >("public");
-  const [dataExpanded, setDataExpanded] = useState(false);
-
-  // ── Payments ──
-  const [upiId, setUpiId] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardName, setCardName] = useState("");
-  const [billingName, setBillingName] = useState("");
-  const [billingAddress, setBillingAddress] = useState("");
-  const [billingCity, setBillingCity] = useState("");
-  const [billingPincode, setBillingPincode] = useState("");
 
   // ── Notifications ──
   const [notifJobAlerts, setNotifJobAlerts] = useState(true);
-  const [notifBooking, setNotifBooking] = useState(true);
+  const [notifMessages, setNotifMessages] = useState(true);
+  const [notifCommunity, setNotifCommunity] = useState(false);
   const [notifPayment, setNotifPayment] = useState(true);
-  const [notifUpdates, setNotifUpdates] = useState(false);
+  const [notifBooking, setNotifBooking] = useState(true);
 
-  // ── Theme & Language ──
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [language, setLanguage] = useState("Hindi");
+  // ── Job Preferences ──
+  const [jobPrefCategory, setJobPrefCategory] = useState("");
+  const [jobPrefSalary, setJobPrefSalary] = useState("");
+  const [jobPrefLocation, setJobPrefLocation] = useState("");
+  const [jobAvailType, setJobAvailType] = useState<"fulltime" | "parttime">(
+    "fulltime",
+  );
+  const [workRadius, setWorkRadius] = useState("25");
 
-  // ── Activity ──
-  const [activityLog, _setActivityLog] = useState(MOCK_ACTIVITY);
-  const [historyCleared, setHistoryCleared] = useState(false);
+  // ── Feedback / Rate ──
+  const [rating, setRating] = useState(0);
+  const [feedbackText, setFeedbackText] = useState("");
 
   // ── Help ──
   const [contactName, setContactName] = useState("");
@@ -288,15 +260,22 @@ export function Settings() {
   const [reportDescription, setReportDescription] = useState("");
   const [reportCategory, setReportCategory] = useState("");
 
+  // ── Theme & Language ──
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [language, setLanguage] = useState("Hindi");
+
   // ── Account Deletion ──
-  const [deactivated, setDeactivated] = useState(false);
   const [deleteEmail, setDeleteEmail] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deactivated, setDeactivated] = useState(false);
 
-  const toggle = (id: string) =>
-    setOpenSection((prev) => (prev === id ? null : id));
+  // ── Referral ──
+  const userId =
+    profile?.mobile ||
+    `USER${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+  const referralLink = `https://kaammitra.app/invite/${userId}`;
 
-  // Load from localStorage on mount
+  // Load persisted settings
   useEffect(() => {
     const savedTheme = (localStorage.getItem("kaam_mitra_theme") || "light") as
       | "light"
@@ -304,20 +283,14 @@ export function Settings() {
     const saved2FA = localStorage.getItem("kaam_mitra_2fa_enabled") === "true";
     const savedVisibility = (localStorage.getItem(
       "kaam_mitra_profile_visibility",
-    ) || "public") as "public" | "private";
+    ) || "public") as "public" | "private" | "contacts";
     const savedNotifs = JSON.parse(
       localStorage.getItem("kaam_mitra_notifications") || "{}",
     );
     const savedLanguage =
       localStorage.getItem("kaam_mitra_language") || "Hindi";
-    const savedPayment = JSON.parse(
-      localStorage.getItem("kaam_mitra_payment_methods") || "{}",
-    );
-    const savedBilling = JSON.parse(
-      localStorage.getItem("kaam_mitra_billing_address") || "{}",
-    );
-    const savedActivity = JSON.parse(
-      localStorage.getItem("kaam_mitra_activity_log") || "[]",
+    const savedJobPrefs = JSON.parse(
+      localStorage.getItem("kaam_mitra_job_prefs") || "{}",
     );
     const savedDeactivated =
       localStorage.getItem("kaam_mitra_account_deactivated") === "true";
@@ -328,24 +301,24 @@ export function Settings() {
     setProfileVisibility(savedVisibility);
     if (savedNotifs.jobAlerts !== undefined)
       setNotifJobAlerts(savedNotifs.jobAlerts);
-    if (savedNotifs.booking !== undefined) setNotifBooking(savedNotifs.booking);
+    if (savedNotifs.messages !== undefined)
+      setNotifMessages(savedNotifs.messages);
+    if (savedNotifs.community !== undefined)
+      setNotifCommunity(savedNotifs.community);
     if (savedNotifs.payment !== undefined) setNotifPayment(savedNotifs.payment);
-    if (savedNotifs.updates !== undefined) setNotifUpdates(savedNotifs.updates);
+    if (savedNotifs.booking !== undefined) setNotifBooking(savedNotifs.booking);
     setLanguage(savedLanguage);
-    if (savedPayment.upiId) setUpiId(savedPayment.upiId);
-    if (savedPayment.cardNumber) setCardNumber(savedPayment.cardNumber);
-    if (savedPayment.cardName) setCardName(savedPayment.cardName);
-    if (savedBilling.name) setBillingName(savedBilling.name);
-    if (savedBilling.address) setBillingAddress(savedBilling.address);
-    if (savedBilling.city) setBillingCity(savedBilling.city);
-    if (savedBilling.pincode) setBillingPincode(savedBilling.pincode);
-    if (savedActivity.length > 0) _setActivityLog(savedActivity);
+    if (savedJobPrefs.category) setJobPrefCategory(savedJobPrefs.category);
+    if (savedJobPrefs.salary) setJobPrefSalary(savedJobPrefs.salary);
+    if (savedJobPrefs.location) setJobPrefLocation(savedJobPrefs.location);
+    if (savedJobPrefs.availType) setJobAvailType(savedJobPrefs.availType);
+    if (savedJobPrefs.radius) setWorkRadius(savedJobPrefs.radius);
     setDeactivated(savedDeactivated);
   }, []);
 
   // Password rules
   const pwRules = {
-    length: cpNew.length >= 12,
+    length: cpNew.length >= 10,
     upper: /[A-Z]/.test(cpNew),
     lower: /[a-z]/.test(cpNew),
     number: /[0-9]/.test(cpNew),
@@ -353,6 +326,7 @@ export function Settings() {
   };
   const pwValid = Object.values(pwRules).every(Boolean);
 
+  // ── Handlers ──
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -366,37 +340,21 @@ export function Settings() {
     const updated = {
       ...current,
       name: epName,
+      email: epEmail,
       category: epCategory,
       experience: epExperience,
       state: epState,
       city: epCity,
-      profilePhoto: epPhotoPreview,
+      photo: epPhotoPreview || current.photo,
     };
     saveProfile(updated);
     const ext = getMyExtendedProfile();
-    if (ext) saveMyExtendedProfile({ ...ext, gender: epGender || undefined });
+    if (ext)
+      saveMyExtendedProfile({
+        ...ext,
+        profilePhotoBase64: epPhotoPreview || ext.profilePhotoBase64 || "",
+      });
     toast.success("Profile update ho gaya! ✅");
-  }
-
-  function handleChangePassword() {
-    const stored = localStorage.getItem("workerPassword") || "1234";
-    if (cpCurrent !== stored) {
-      toast.error("Current password galat hai");
-      return;
-    }
-    if (!pwValid) {
-      toast.error("Naya password rules follow nahi kar raha");
-      return;
-    }
-    if (cpNew !== cpConfirm) {
-      toast.error("Passwords match nahi karte");
-      return;
-    }
-    localStorage.setItem("workerPassword", cpNew);
-    setCpCurrent("");
-    setCpNew("");
-    setCpConfirm("");
-    toast.success("Password badal gaya! 🔒");
   }
 
   function handleSendOtp() {
@@ -407,7 +365,7 @@ export function Settings() {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(otp);
     setOtpSent(true);
-    toast.success("OTP bhej diya gaya (demo)");
+    toast.success(`OTP bheja gaya (Demo): ${otp}`);
   }
 
   function handleVerifyOtp() {
@@ -417,23 +375,20 @@ export function Settings() {
       setMobileVerified(true);
       const ext = getMyExtendedProfile();
       if (ext) saveMyExtendedProfile({ ...ext, mobileVerified: true });
-      toast.success("Mobile Number Verified Successfully ✅");
+      toast.success("Mobile Number Verified! ✅");
     } else {
       toast.error("Galat OTP! Dobara try karein");
     }
   }
 
   function handleEmailSend() {
-    if (!emailInput.includes("@")) {
+    if (!epEmail.includes("@")) {
       toast.error("Valid email daalo");
       return;
     }
     const current = loadProfile() || {};
-    saveProfile({ ...current, email: emailInput, emailVerified: "true" });
-    // email verified state removed
+    saveProfile({ ...current, email: epEmail, emailVerified: "true" });
     setEmailSent(true);
-    const ext = getMyExtendedProfile();
-    if (ext) saveMyExtendedProfile({ ...ext, emailVerified: true });
     toast.success("Verification link bhej diya! (Demo)");
   }
 
@@ -444,6 +399,8 @@ export function Settings() {
     }
     const current = loadProfile() || {};
     saveProfile({ ...current, state: locState, city: locCity });
+    setEpState(locState);
+    setEpCity(locCity);
     toast.success("Location update ho gaya! 📍");
   }
 
@@ -461,14 +418,35 @@ export function Settings() {
     );
   }
 
-  function handleAvailabilityToggle(checked: boolean) {
-    const newVal = checked ? "available" : "busy";
-    setAvailability(newVal);
+  function handleAvailabilityChange(val: "available" | "busy" | "offline") {
+    setAvailability(val);
     const current = loadProfile() || {};
-    saveProfile({ ...current, availability: newVal });
-    toast.success(
-      checked ? "Ab aap Available hain 🟢" : "Status Busy set ho gaya 🔴",
-    );
+    saveProfile({ ...current, availability: val });
+    const msgs = {
+      available: "Ab aap Available hain 🟢",
+      busy: "Status Busy set ho gaya 🔴",
+      offline: "Status Offline set ho gaya ⚫",
+    };
+    toast.success(msgs[val]);
+  }
+
+  function handleChangePassword() {
+    if (!cpCurrent) {
+      toast.error("Current password daalo");
+      return;
+    }
+    if (!pwValid) {
+      toast.error("Password requirements poore nahi hain");
+      return;
+    }
+    if (cpNew !== cpConfirm) {
+      toast.error("Passwords match nahi kar rahe");
+      return;
+    }
+    toast.success("Password change ho gaya! 🔐");
+    setCpCurrent("");
+    setCpNew("");
+    setCpConfirm("");
   }
 
   function handle2FAToggle(checked: boolean) {
@@ -477,26 +455,10 @@ export function Settings() {
     toast.success(checked ? "2FA Enable ho gaya 🔐" : "2FA Disable ho gaya");
   }
 
-  function handleVisibilityToggle(checked: boolean) {
-    const val = checked ? "public" : "private";
-    setProfileVisibility(val);
-    localStorage.setItem("kaam_mitra_profile_visibility", val);
-    toast.success(checked ? "Profile ab Public hai" : "Profile ab Private hai");
-  }
-
   function handleDownloadData() {
     const data = {
       profile: loadProfile(),
       extProfile: getMyExtendedProfile(),
-      notifications: {
-        jobAlerts: notifJobAlerts,
-        booking: notifBooking,
-        payment: notifPayment,
-        updates: notifUpdates,
-      },
-      language,
-      theme,
-      profileVisibility,
       exportedAt: new Date().toISOString(),
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -511,251 +473,253 @@ export function Settings() {
     toast.success("Data download ho raha hai 📥");
   }
 
-  function handleSavePaymentMethods() {
-    localStorage.setItem(
-      "kaam_mitra_payment_methods",
-      JSON.stringify({ upiId, cardNumber, cardName }),
-    );
-    toast.success("Payment methods save ho gaye ✅");
-  }
-
-  function handleSaveBilling() {
-    localStorage.setItem(
-      "kaam_mitra_billing_address",
-      JSON.stringify({
-        name: billingName,
-        address: billingAddress,
-        city: billingCity,
-        pincode: billingPincode,
-      }),
-    );
-    toast.success("Billing address save ho gaya ✅");
-  }
-
   function handleSaveNotifications() {
     localStorage.setItem(
       "kaam_mitra_notifications",
       JSON.stringify({
         jobAlerts: notifJobAlerts,
-        booking: notifBooking,
+        messages: notifMessages,
+        community: notifCommunity,
         payment: notifPayment,
-        updates: notifUpdates,
+        booking: notifBooking,
       }),
     );
     toast.success("Notification settings save ho gaye ✅");
   }
 
-  function applyTheme(t: "light" | "dark") {
+  function handleSaveJobPrefs() {
+    localStorage.setItem(
+      "kaam_mitra_job_prefs",
+      JSON.stringify({
+        category: jobPrefCategory,
+        salary: jobPrefSalary,
+        location: jobPrefLocation,
+        availType: jobAvailType,
+        radius: workRadius,
+      }),
+    );
+    toast.success("Job preferences save ho gaye ✅");
+  }
+
+  function handleCopyReferral() {
+    navigator.clipboard
+      .writeText(referralLink)
+      .then(() => toast.success("Referral link copy ho gaya! 🔗"))
+      .catch(() => toast.error("Copy nahi ho paya"));
+  }
+
+  function handleShareWhatsApp() {
+    const msg = encodeURIComponent(
+      `KaamMitra App se kaam dhundho ya workers hire karo! Join karein: ${referralLink}`,
+    );
+    window.open(`https://wa.me/?text=${msg}`, "_blank");
+  }
+
+  function handleShareFacebook() {
+    window.open(
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}`,
+      "_blank",
+    );
+  }
+
+  function handleShareTelegram() {
+    const msg = encodeURIComponent(
+      `KaamMitra App - India ka Best Labour Marketplace! Join karein: ${referralLink}`,
+    );
+    window.open(
+      `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${msg}`,
+      "_blank",
+    );
+  }
+
+  function handleShareAvailability() {
+    const statusMap = {
+      available: "Available for Work 🟢",
+      busy: "Busy 🔴",
+      offline: "Offline ⚫",
+    };
+    const msg = encodeURIComponent(
+      `Main ab ${statusMap[availability]} hoon. KaamMitra par mujhe hire karein: ${referralLink}`,
+    );
+    window.open(`https://wa.me/?text=${msg}`, "_blank");
+  }
+
+  function handleThemeToggle(checked: boolean) {
+    const t = checked ? "dark" : "light";
     setTheme(t);
     localStorage.setItem("kaam_mitra_theme", t);
     if (t === "dark") document.documentElement.classList.add("dark");
     else document.documentElement.classList.remove("dark");
-    toast.success(t === "dark" ? "Dark mode on 🌙" : "Light mode on ☀️");
+    toast.success(checked ? "Dark Mode On 🌙" : "Light Mode On ☀️");
   }
 
   function handleLanguageChange(val: string) {
     setLanguage(val);
     localStorage.setItem("kaam_mitra_language", val);
-    toast.success(`Language set: ${val}`);
-  }
-
-  function handleClearSearchHistory() {
-    localStorage.removeItem("kaam_mitra_search_history");
-    setHistoryCleared(true);
-    toast.success("Search history clear ho gaya ✅");
+    toast.success(`Language ${val} set ho gayi`);
   }
 
   function handleContactSupport() {
-    if (!contactName.trim() || !contactMessage.trim()) {
-      toast.error("Naam aur message dono daalo");
+    if (!contactName || !contactMessage) {
+      toast.error("Naam aur message daalo");
       return;
     }
+    toast.success("Message bhej diya gaya! Hum jaldi contact karenge 📩");
     setContactName("");
     setContactMessage("");
-    toast.success("Support request bhej di! Jald hi jawab milega 📩");
   }
 
   function handleReportProblem() {
-    if (!reportDescription.trim() || !reportCategory) {
-      toast.error("Description aur category chunein");
+    if (!reportDescription) {
+      toast.error("Problem describe karein");
       return;
     }
+    toast.success("Report submit ho gayi! Admin review karega ✅");
     setReportDescription("");
     setReportCategory("");
-    toast.success("Problem report ho gaya ✅ Hum check karenge");
   }
 
   function handleDeactivateToggle(checked: boolean) {
     setDeactivated(checked);
     localStorage.setItem("kaam_mitra_account_deactivated", checked.toString());
     toast.success(
-      checked
-        ? "Account deactivate ho gaya ⚠️"
-        : "Account reactivate ho gaya ✅",
+      checked ? "Account deactivate ho gaya" : "Account activate ho gaya",
     );
   }
 
   function handleDeleteAccount() {
-    const p = loadProfile();
-    const expectedEmail = p?.email || "";
-    if (deleteEmail !== expectedEmail) {
-      toast.error("Email match nahi karta");
+    if (!deleteEmail.includes("@")) {
+      toast.error("Valid email daalo");
       return;
     }
-    // Clear all kaam_mitra_* keys
-    const keys = Object.keys(localStorage).filter(
-      (k) =>
-        k.startsWith("kaam_mitra_") ||
-        k === "workerProfile" ||
-        k === "contractorProfile" ||
-        k === "workerPassword",
-    );
-    for (const k of keys) {
-      localStorage.removeItem(k);
-    }
-    setDeleteDialogOpen(false);
-    toast.success("Account permanently delete ho gaya");
-    navigate({ to: "/" });
+    localStorage.clear();
+    toast.success("Account delete ho gaya. App band ho raha hai...");
+    setTimeout(() => navigate({ to: "/" }), 2000);
   }
 
   function handleLogout() {
     localStorage.removeItem("workerProfile");
-    localStorage.removeItem("contractorProfile");
+    toast.success("Logout ho gaye! 👋");
     navigate({ to: "/" });
   }
 
-  const isAvailable = availability === "available";
-
-  const loginHistory: { date: string; device: string; location: string }[] =
-    (() => {
-      try {
-        const raw = localStorage.getItem("kaam_mitra_login_history");
-        if (!raw) return MOCK_LOGIN_HISTORY;
-        const parsed = JSON.parse(raw);
-        return parsed.length > 0 ? parsed : MOCK_LOGIN_HISTORY;
-      } catch {
-        return MOCK_LOGIN_HISTORY;
-      }
-    })();
+  const availBadge = {
+    available: (
+      <Badge className="bg-green-500 text-white text-xs px-2">
+        🟢 Available
+      </Badge>
+    ),
+    busy: <Badge className="bg-red-500 text-white text-xs px-2">🔴 Busy</Badge>,
+    offline: (
+      <Badge className="bg-gray-500 text-white text-xs px-2">⚫ Offline</Badge>
+    ),
+  };
 
   return (
-    <div className="page-container pt-4">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="mb-5">
-        <h1 className="text-2xl font-display font-black text-foreground">
-          Settings
-        </h1>
-        {profile?.name && (
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Namaste,{" "}
-            <span className="font-semibold text-foreground">
-              {profile.name}
-            </span>{" "}
-            👋
+      <div className="sticky top-0 z-10 bg-primary text-primary-foreground px-4 py-3 flex items-center gap-3 shadow-md">
+        <button
+          type="button"
+          onClick={() => navigate({ to: "/" })}
+          className="p-1.5 rounded-lg hover:bg-white/20 transition-colors"
+        >
+          <ChevronRight className="h-5 w-5 rotate-180" />
+        </button>
+        <div>
+          <h1 className="font-bold text-lg leading-tight">Settings</h1>
+          <p className="text-xs opacity-80">
+            Apni profile aur preferences manage karein
           </p>
-        )}
+        </div>
+        <div className="ml-auto">{availBadge[availability]}</div>
       </div>
 
-      <div className="space-y-3">
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-3">
+      {/* Quick action cards */}
+      <div className="px-4 pt-4 pb-2 grid grid-cols-2 gap-2">
+        {[
+          {
+            label: "Worker Verify",
+            icon: ShieldCheck,
+            to: "/worker-verification",
+            color: "bg-blue-50 border-blue-200 text-blue-700",
+          },
+          {
+            label: "ID Card",
+            icon: Bookmark,
+            to: "/worker-id-card",
+            color: "bg-green-50 border-green-200 text-green-700",
+          },
+          {
+            label: "Verify & Pay",
+            icon: Zap,
+            to: "/verify-and-pay",
+            color: "bg-orange-50 border-orange-200 text-orange-700",
+          },
+          {
+            label: "Scan Worker",
+            icon: Users,
+            to: "/scan-worker",
+            color: "bg-purple-50 border-purple-200 text-purple-700",
+          },
+        ].map(({ label, icon: Icon, to, color }) => (
           <button
             type="button"
-            data-ocid="settings.worker_verification_button"
-            onClick={() => navigate({ to: "/worker-verification" })}
-            className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl p-4 text-left hover:bg-green-100 transition-colors active:bg-green-200"
+            key={to}
+            onClick={() => navigate({ to })}
+            className={`flex items-center gap-2 p-3 rounded-xl border text-sm font-medium ${color} active:scale-95 transition-transform`}
           >
-            <span className="text-2xl">📋</span>
-            <div>
-              <p className="font-bold text-green-800 text-sm leading-tight">
-                Worker
-              </p>
-              <p className="font-bold text-green-800 text-sm leading-tight">
-                Verification
-              </p>
-            </div>
+            <Icon className="h-4 w-4 shrink-0" />
+            {label}
           </button>
-          <button
-            type="button"
-            data-ocid="settings.id_card_button"
-            onClick={() => navigate({ to: "/worker-id-card" })}
-            className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl p-4 text-left hover:bg-blue-100 transition-colors active:bg-blue-200"
+        ))}
+      </div>
+
+      {/* Main Accordion */}
+      <div className="px-4 pb-6">
+        <Accordion type="single" collapsible className="space-y-2">
+          {/* ── SECTION 1: Profile Settings ── */}
+          <AccordionItem
+            value="profile"
+            data-ocid="settings.profile_section"
+            className="border border-border rounded-2xl overflow-hidden bg-card shadow-sm"
           >
-            <span className="text-2xl">🪪</span>
-            <div>
-              <p className="font-bold text-blue-800 text-sm leading-tight">
-                My ID
-              </p>
-              <p className="font-bold text-blue-800 text-sm leading-tight">
-                Card
-              </p>
-            </div>
-          </button>
-        </div>
-
-        {/* ── SECTION 1: Profile Management ── */}
-        <Section
-          id="profile_management"
-          icon={<User className="w-5 h-5" />}
-          title="Profile Management"
-          subtitle="Naam, photo, mobile, email, location"
-          isOpen={openSection === "profile_management"}
-          onToggle={() => toggle("profile_management")}
-        >
-          <div className="space-y-5">
-            {/* Update Name */}
-            <div>
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">
-                📝 Naam Update Karein
-              </p>
-              <Label className="text-xs font-semibold mb-1 block">
-                Apna Naam
-              </Label>
-              <Input
-                data-ocid="settings.profile.name_input"
-                value={epName}
-                onChange={(e) => setEpName(e.target.value)}
-                placeholder="Apna pura naam daalo"
-              />
-              <Button
-                data-ocid="settings.profile.save_button"
-                className="w-full mt-2"
-                onClick={handleEditProfileSave}
-              >
-                Naam Save Karein ✅
-              </Button>
-            </div>
-
-            <div className="border-t border-border/40 pt-4">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">
-                📸 Profile Photo Change Karein
-              </p>
-              <div className="flex flex-col items-center gap-2">
-                <button
-                  type="button"
-                  className="w-20 h-20 rounded-full border-2 border-border overflow-hidden bg-muted flex items-center justify-center cursor-pointer"
-                  onClick={() => photoRef.current?.click()}
-                  aria-label="Profile photo upload"
-                >
-                  {epPhotoPreview ? (
-                    <img
-                      src={epPhotoPreview}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Camera className="w-8 h-8 text-muted-foreground" />
-                  )}
-                </button>
-                <Button
-                  type="button"
-                  data-ocid="settings.profile.photo_upload"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => photoRef.current?.click()}
-                >
-                  Photo Change Karein
-                </Button>
+            <AccordionTrigger className="px-4 py-4 hover:no-underline hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <User className="h-4 w-4 text-primary" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-sm">Profile Settings</p>
+                  <p className="text-xs text-muted-foreground">
+                    Photo, name, contact, location
+                  </p>
+                </div>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4 space-y-5">
+              {/* Photo */}
+              <div className="flex flex-col items-center gap-3 pt-2">
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-full bg-muted border-2 border-primary/30 overflow-hidden flex items-center justify-center">
+                    {epPhotoPreview ? (
+                      <img
+                        src={epPhotoPreview}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User className="h-8 w-8 text-muted-foreground" />
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => photoRef.current?.click()}
+                    className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow"
+                  >
+                    <Camera className="h-3.5 w-3.5" />
+                  </button>
+                </div>
                 <input
                   ref={photoRef}
                   type="file"
@@ -763,145 +727,155 @@ export function Settings() {
                   className="hidden"
                   onChange={handlePhotoChange}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Photo tap karke change karein
+                </p>
               </div>
-            </div>
 
-            <div className="border-t border-border/40 pt-4">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">
-                📱 Mobile Number Update Karein
-              </p>
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-xs font-semibold mb-1 block">
-                    Mobile Number
-                  </Label>
-                  <Input
-                    data-ocid="settings.profile.mobile_input"
-                    type="tel"
-                    value={mobileNum}
-                    onChange={(e) => setMobileNum(e.target.value)}
-                    placeholder="10 digit mobile number"
-                    maxLength={10}
-                  />
-                </div>
-                {mobileVerified ? (
-                  <div
-                    data-ocid="settings.mobile_verify.success_state"
-                    className="flex items-center gap-2 py-1"
-                  >
-                    <CheckCircle2 className="w-4 h-4 text-green-600" />
-                    <span className="text-sm font-semibold text-green-700">
-                      ✅ Mobile Verified
-                    </span>
-                  </div>
-                ) : !otpSent ? (
-                  <Button
-                    data-ocid="settings.profile.send_otp_button"
-                    className="w-full"
-                    onClick={handleSendOtp}
-                  >
-                    OTP Bhejo 📱
-                  </Button>
-                ) : (
-                  <>
-                    {generatedOtp && (
-                      <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-center">
-                        <p className="text-xs text-amber-700 font-medium mb-1">
-                          Aapka OTP (Demo):
-                        </p>
-                        <p className="text-2xl font-bold text-amber-800 tracking-widest">
-                          {generatedOtp}
-                        </p>
-                      </div>
-                    )}
-                    <div>
-                      <Label className="text-xs font-semibold mb-1 block">
-                        OTP Daalo
-                      </Label>
-                      <Input
-                        data-ocid="settings.profile.otp_input"
-                        type="number"
-                        value={mobileOtp}
-                        onChange={(e) => setMobileOtp(e.target.value)}
-                        placeholder="6 digit OTP"
-                        maxLength={6}
-                      />
-                    </div>
-                    <Button
-                      data-ocid="settings.profile.verify_otp_button"
-                      className="w-full"
-                      onClick={handleVerifyOtp}
-                    >
-                      OTP Verify Karein ✅
-                    </Button>
-                    <button
-                      type="button"
-                      className="text-xs text-primary text-center w-full"
-                      onClick={() => {
-                        setOtpSent(false);
-                        setMobileOtp("");
-                        setGeneratedOtp("");
-                      }}
-                    >
-                      Dobara bhejo
-                    </button>
-                  </>
-                )}
+              {/* Name */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Poora Naam</Label>
+                <Input
+                  value={epName}
+                  onChange={(e) => setEpName(e.target.value)}
+                  placeholder="Aapka naam"
+                  data-ocid="settings.profile.input"
+                />
               </div>
-            </div>
 
-            <div className="border-t border-border/40 pt-4">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">
-                📧 Email Update Karein
-              </p>
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-xs font-semibold mb-1 block">
-                    Email Address
-                  </Label>
+              {/* Email */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Email ID</Label>
+                <div className="flex gap-2">
                   <Input
-                    data-ocid="settings.profile.email_input"
+                    value={epEmail}
+                    onChange={(e) => setEpEmail(e.target.value)}
+                    placeholder="email@example.com"
                     type="email"
-                    value={emailInput}
-                    onChange={(e) => setEmailInput(e.target.value)}
-                    placeholder="aapka@email.com"
+                    className="flex-1"
                   />
-                </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
-                  <p className="text-xs text-blue-700">
-                    ℹ️ Email verification demo mode mein hai. Real verification
-                    ke liye paid plan chahiye.
-                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleEmailSend}
+                    className="shrink-0 text-xs"
+                  >
+                    {emailSent ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Mail className="h-4 w-4" />
+                    )}
+                  </Button>
                 </div>
                 {emailSent && (
-                  <div
-                    data-ocid="settings.email_verify.success_state"
-                    className="bg-green-50 border border-green-200 rounded-xl p-3 text-center"
+                  <p className="text-xs text-green-600">
+                    ✅ Verification link bheja gaya (Demo)
+                  </p>
+                )}
+              </div>
+
+              {/* Category */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Work Category</Label>
+                <Select value={epCategory} onValueChange={setEpCategory}>
+                  <SelectTrigger data-ocid="settings.profile.select">
+                    <SelectValue placeholder="Category chunein" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.slice(0, 30).map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Experience */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Experience</Label>
+                <Select value={epExperience} onValueChange={setEpExperience}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Experience chunein" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[
+                      "Fresher (0 saal)",
+                      "1 saal",
+                      "2 saal",
+                      "3 saal",
+                      "4 saal",
+                      "5 saal",
+                      "6-10 saal",
+                      "10+ saal",
+                    ].map((e) => (
+                      <SelectItem key={e} value={e}>
+                        {e}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Mobile OTP */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium flex items-center gap-2">
+                  Mobile Number
+                  {mobileVerified && (
+                    <Badge className="bg-green-500 text-white text-xs py-0">
+                      Verified
+                    </Badge>
+                  )}
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={mobileNum}
+                    onChange={(e) => setMobileNum(e.target.value)}
+                    placeholder="10 digit number"
+                    maxLength={10}
+                    className="flex-1"
+                    data-ocid="settings.profile.input"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleSendOtp}
+                    className="shrink-0 text-xs"
                   >
-                    <p className="text-sm text-green-700 font-semibold">
-                      📧 Verification bhej di! (Demo)
-                    </p>
+                    <Phone className="h-3.5 w-3.5 mr-1" /> OTP
+                  </Button>
+                </div>
+                {otpSent && (
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      value={mobileOtp}
+                      onChange={(e) => setMobileOtp(e.target.value)}
+                      placeholder="6-digit OTP"
+                      maxLength={6}
+                      className="flex-1"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleVerifyOtp}
+                      className="shrink-0 text-xs"
+                    >
+                      Verify
+                    </Button>
                   </div>
                 )}
-                <Button
-                  data-ocid="settings.profile.send_email_button"
-                  className="w-full"
-                  onClick={handleEmailSend}
-                >
-                  Verification Send Karein 📧
-                </Button>
+                {otpSent && (
+                  <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded-lg">
+                    Demo OTP check karein: {generatedOtp}
+                  </p>
+                )}
               </div>
-            </div>
 
-            <div className="border-t border-border/40 pt-4">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">
-                📍 Location Update Karein
-              </p>
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-xs font-semibold mb-1 block">
-                    State
-                  </Label>
+              {/* Location */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">
+                  Location (State / City)
+                </Label>
+                <div className="flex gap-2">
                   <Select
                     value={locState}
                     onValueChange={(v) => {
@@ -909,8 +883,8 @@ export function Settings() {
                       setLocCity("");
                     }}
                   >
-                    <SelectTrigger data-ocid="settings.profile.state_select">
-                      <SelectValue placeholder="State chunein" />
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="State" />
                     </SelectTrigger>
                     <SelectContent>
                       {Object.keys(INDIA_STATES).map((s) => (
@@ -920,1119 +894,1280 @@ export function Settings() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <Select
+                    value={locCity}
+                    onValueChange={setLocCity}
+                    disabled={!locState}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="City" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(INDIA_STATES[locState] || []).map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                {locState && (
-                  <div>
-                    <Label className="text-xs font-semibold mb-1 block">
-                      City
-                    </Label>
-                    <Select value={locCity} onValueChange={setLocCity}>
-                      <SelectTrigger data-ocid="settings.profile.city_select">
-                        <SelectValue placeholder="City chunein" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {INDIA_STATES[locState]?.map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {c}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  disabled={gpsLoading}
-                  onClick={handleGpsDetect}
-                >
-                  <Wifi className="w-4 h-4 mr-2" />
-                  {gpsLoading ? "Detecting..." : "GPS Se Detect Karein 📍"}
-                </Button>
-                <Button className="w-full" onClick={handleLocationSave}>
-                  Location Save Karein 📍
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleGpsDetect}
+                    disabled={gpsLoading}
+                    className="flex-1 text-xs"
+                  >
+                    <MapPin className="h-3.5 w-3.5 mr-1" />{" "}
+                    {gpsLoading ? "Detecting..." : "GPS Use Karein"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleLocationSave}
+                    className="flex-1 text-xs"
+                  >
+                    Save Location
+                  </Button>
+                </div>
               </div>
-            </div>
 
-            <div className="border-t border-border/40 pt-4">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">
-                🟢 Availability Status
-              </p>
+              {/* Availability */}
               <div
-                className={`rounded-xl border-2 p-4 transition-colors ${isAvailable ? "border-green-300 bg-green-50" : "border-red-300 bg-red-50"}`}
+                className="space-y-2"
+                data-ocid="settings.availability_toggle"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p
-                      className={`font-bold text-sm ${isAvailable ? "text-green-800" : "text-red-800"}`}
-                    >
-                      {isAvailable
-                        ? "🟢 Available for Work"
-                        : "🔴 Busy / Not Available"}
-                    </p>
-                    <p
-                      className={`text-xs mt-0.5 ${isAvailable ? "text-green-700" : "text-red-700"}`}
-                    >
-                      {isAvailable
-                        ? "Contractors aapko dekh sakte hain"
-                        : "Abhi kaam available nahi hai"}
-                    </p>
-                  </div>
-                  <Switch
-                    data-ocid="settings.profile.availability_toggle"
-                    checked={isAvailable}
-                    onCheckedChange={handleAvailabilityToggle}
-                  />
+                <Label className="text-xs font-medium">
+                  Availability Status
+                </Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["available", "busy", "offline"] as const).map((s) => {
+                    const cfg = {
+                      available: {
+                        label: "Available",
+                        color: "bg-green-500",
+                        ring: "ring-green-400",
+                      },
+                      busy: {
+                        label: "Busy",
+                        color: "bg-red-500",
+                        ring: "ring-red-400",
+                      },
+                      offline: {
+                        label: "Offline",
+                        color: "bg-gray-500",
+                        ring: "ring-gray-400",
+                      },
+                    };
+                    const c = cfg[s];
+                    return (
+                      <button
+                        type="button"
+                        key={s}
+                        onClick={() => handleAvailabilityChange(s)}
+                        className={`py-2.5 rounded-xl text-xs font-semibold text-white transition-all ${c.color} ${availability === s ? `ring-2 ${c.ring} ring-offset-2 scale-105` : "opacity-60"}`}
+                      >
+                        {c.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-            </div>
-          </div>
-        </Section>
 
-        {/* ── SECTION 2: Account & Security ── */}
-        <Section
-          id="account_security"
-          icon={<ShieldCheck className="w-5 h-5" />}
-          title="Account & Security"
-          subtitle="Password, 2FA, login history"
-          isOpen={openSection === "account_security"}
-          onToggle={() => toggle("account_security")}
-        >
-          <div className="space-y-5">
-            {/* Change Password */}
-            <div>
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                🔒 Password Change Karein
-              </p>
+              <Button
+                onClick={handleEditProfileSave}
+                className="w-full"
+                data-ocid="settings.save_button"
+              >
+                Profile Save Karein ✅
+              </Button>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* ── SECTION 2: Security & Privacy ── */}
+          <AccordionItem
+            value="security"
+            data-ocid="settings.security_section"
+            className="border border-border rounded-2xl overflow-hidden bg-card shadow-sm"
+          >
+            <AccordionTrigger className="px-4 py-4 hover:no-underline hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-destructive/10 flex items-center justify-center">
+                  <Shield className="h-4 w-4 text-destructive" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-sm">Security & Privacy</p>
+                  <p className="text-xs text-muted-foreground">
+                    Password, 2FA, privacy controls
+                  </p>
+                </div>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4 space-y-5">
+              {/* Change Password */}
               <div className="space-y-3">
-                <div>
-                  <Label className="text-xs font-semibold mb-1 block">
-                    Current Password
-                  </Label>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Password Change
+                </p>
+                <div className="space-y-2">
                   <div className="relative">
                     <Input
-                      data-ocid="settings.security.current_password_input"
                       type={showCurrent ? "text" : "password"}
                       value={cpCurrent}
                       onChange={(e) => setCpCurrent(e.target.value)}
                       placeholder="Current password"
-                      className="pr-10"
+                      data-ocid="settings.security.input"
                     />
                     <button
                       type="button"
+                      onClick={() => setShowCurrent(!showCurrent)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                      onClick={() => setShowCurrent((p) => !p)}
                     >
                       {showCurrent ? (
-                        <EyeOff className="w-4 h-4" />
+                        <EyeOff className="h-4 w-4" />
                       ) : (
-                        <Eye className="w-4 h-4" />
+                        <Eye className="h-4 w-4" />
                       )}
                     </button>
                   </div>
-                </div>
-                <div>
-                  <Label className="text-xs font-semibold mb-1 block">
-                    New Password
-                  </Label>
                   <div className="relative">
                     <Input
-                      data-ocid="settings.security.new_password_input"
                       type={showNew ? "text" : "password"}
                       value={cpNew}
                       onChange={(e) => setCpNew(e.target.value)}
-                      placeholder="Naya password (12+ characters)"
-                      className="pr-10"
+                      placeholder="New password (min 10 chars)"
                     />
                     <button
                       type="button"
+                      onClick={() => setShowNew(!showNew)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                      onClick={() => setShowNew((p) => !p)}
                     >
                       {showNew ? (
-                        <EyeOff className="w-4 h-4" />
+                        <EyeOff className="h-4 w-4" />
                       ) : (
-                        <Eye className="w-4 h-4" />
+                        <Eye className="h-4 w-4" />
                       )}
                     </button>
                   </div>
-                </div>
-                {cpNew.length > 0 && (
-                  <div className="bg-muted/50 rounded-xl p-3 space-y-1">
-                    {[
-                      { key: "length", label: "12+ characters" },
-                      { key: "upper", label: "Ek Uppercase letter (A-Z)" },
-                      { key: "lower", label: "Ek Lowercase letter (a-z)" },
-                      { key: "number", label: "Ek Number (0-9)" },
-                      { key: "special", label: "Ek Special character (!@#$)" },
-                    ].map(({ key, label }) => (
-                      <div
-                        key={key}
-                        className="flex items-center gap-2 text-xs"
-                      >
-                        <span
-                          className={
-                            pwRules[key as keyof typeof pwRules]
-                              ? "text-green-600"
-                              : "text-muted-foreground"
-                          }
-                        >
-                          {pwRules[key as keyof typeof pwRules] ? "✅" : "⭕"}
-                        </span>
-                        <span
-                          className={
-                            pwRules[key as keyof typeof pwRules]
-                              ? "text-green-700 font-medium"
-                              : "text-muted-foreground"
-                          }
-                        >
-                          {label}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div>
-                  <Label className="text-xs font-semibold mb-1 block">
-                    Confirm New Password
-                  </Label>
                   <div className="relative">
                     <Input
-                      data-ocid="settings.security.confirm_password_input"
                       type={showConfirm ? "text" : "password"}
                       value={cpConfirm}
                       onChange={(e) => setCpConfirm(e.target.value)}
-                      placeholder="Password dobara daalo"
-                      className="pr-10"
+                      placeholder="Confirm new password"
                     />
                     <button
                       type="button"
+                      onClick={() => setShowConfirm(!showConfirm)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                      onClick={() => setShowConfirm((p) => !p)}
                     >
                       {showConfirm ? (
-                        <EyeOff className="w-4 h-4" />
+                        <EyeOff className="h-4 w-4" />
                       ) : (
-                        <Eye className="w-4 h-4" />
+                        <Eye className="h-4 w-4" />
                       )}
                     </button>
                   </div>
-                </div>
-                <Button
-                  data-ocid="settings.security.change_password_button"
-                  className="w-full"
-                  disabled={!pwValid || cpNew !== cpConfirm || !cpCurrent}
-                  onClick={handleChangePassword}
-                >
-                  Password Badlein 🔒
-                </Button>
-              </div>
-            </div>
-
-            {/* 2FA */}
-            <div className="border-t border-border/40 pt-4">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                🔐 Two-Factor Authentication (2FA / MFA)
-              </p>
-              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/30">
-                <div>
-                  <p className="font-semibold text-sm">Enable 2FA / MFA</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Login par extra security layer
-                  </p>
-                </div>
-                <Switch
-                  data-ocid="settings.security.2fa_toggle"
-                  checked={twoFAEnabled}
-                  onCheckedChange={handle2FAToggle}
-                />
-              </div>
-              {twoFAEnabled && (
-                <div className="mt-2 bg-green-50 border border-green-200 rounded-lg p-2">
-                  <p className="text-xs text-green-700 font-medium">
-                    ✅ 2FA Active hai. Har login par OTP verify hoga.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Login History */}
-            <div className="border-t border-border/40 pt-4">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                📋 Login History
-              </p>
-              <div className="space-y-2">
-                {loginHistory.slice(0, 3).map((entry, i) => (
-                  <div
-                    key={entry.date}
-                    data-ocid={`settings.security.login_history.item.${i + 1}`}
-                    className="flex items-start gap-3 p-3 rounded-xl bg-muted/30"
+                  {cpNew && (
+                    <div className="space-y-1 p-3 bg-muted rounded-xl text-xs">
+                      {Object.entries({
+                        length: "Min 10 characters",
+                        upper: "Uppercase letter",
+                        lower: "Lowercase letter",
+                        number: "Number",
+                        special: "Special character",
+                      }).map(([k, label]) => (
+                        <div
+                          key={k}
+                          className={`flex items-center gap-1.5 ${pwRules[k as keyof typeof pwRules] ? "text-green-600" : "text-muted-foreground"}`}
+                        >
+                          {pwRules[k as keyof typeof pwRules] ? (
+                            <CheckCircle2 className="h-3 w-3" />
+                          ) : (
+                            <div className="h-3 w-3 rounded-full border border-current" />
+                          )}
+                          {label}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Button
+                    onClick={handleChangePassword}
+                    variant="outline"
+                    className="w-full text-sm"
+                    disabled={!pwValid && cpNew.length > 0}
                   >
-                    <History className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-foreground">
-                        {entry.date}
-                      </p>
+                    <Lock className="h-4 w-4 mr-2" /> Password Change Karein
+                  </Button>
+                </div>
+              </div>
+
+              {/* 2FA */}
+              <SwitchRow
+                label="Two-Factor Authentication (2FA)"
+                description="Login par extra security ke liye OTP"
+                checked={twoFAEnabled}
+                onCheckedChange={handle2FAToggle}
+                ocid="settings.two_factor_switch"
+              />
+
+              {/* Login History */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Login History
+                </p>
+                {MOCK_LOGIN_HISTORY.map((log) => (
+                  <div
+                    key={log.date}
+                    className="flex items-start gap-3 p-3 bg-muted/50 rounded-xl"
+                  >
+                    <Clock className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs font-medium">{log.device}</p>
                       <p className="text-xs text-muted-foreground">
-                        {entry.device}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        📍 {entry.location}
+                        {log.date} · {log.location}
                       </p>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-        </Section>
 
-        {/* ── SECTION 3: Privacy & Data Usage ── */}
-        <Section
-          id="privacy_data"
-          icon={<Shield className="w-5 h-5" />}
-          title="Privacy & Data Usage"
-          subtitle="Profile visibility, data info, download"
-          isOpen={openSection === "privacy_data"}
-          onToggle={() => toggle("privacy_data")}
-        >
-          <div className="space-y-4">
-            {/* Profile Visibility */}
-            <div>
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                👁️ Profile Visibility
-              </p>
-              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/30">
-                <div>
-                  <p className="font-semibold text-sm">
-                    {profileVisibility === "public"
-                      ? "🌐 Public Profile"
-                      : "🔒 Private Profile"}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {profileVisibility === "public"
-                      ? "Sabhi contractors aapka profile dekh sakte hain"
-                      : "Sirf approved contractors dekh sakte hain"}
-                  </p>
-                </div>
-                <Switch
-                  data-ocid="settings.privacy.visibility_toggle"
-                  checked={profileVisibility === "public"}
-                  onCheckedChange={handleVisibilityToggle}
-                />
-              </div>
-            </div>
-
-            {/* Data Usage Info */}
-            <div className="border-t border-border/40 pt-4">
-              <button
-                type="button"
-                className="w-full flex items-center justify-between text-left"
-                onClick={() => setDataExpanded((p) => !p)}
-              >
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
-                  📊 Data Usage Information
+              {/* Profile Visibility */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Profile Visibility
                 </p>
-                <ChevronRight
-                  className={`w-4 h-4 text-muted-foreground transition-transform ${dataExpanded ? "rotate-90" : ""}`}
-                />
-              </button>
-              {dataExpanded && (
-                <div className="mt-3 bg-muted/30 rounded-xl p-3 space-y-2">
-                  <p className="text-xs text-foreground font-semibold">
-                    Aapka data kaise use hota hai:
-                  </p>
-                  <ul className="text-xs text-muted-foreground space-y-1">
-                    <li>
-                      • Aapka data <strong>Firebase Firestore</strong> mein
-                      securely store hota hai
-                    </li>
-                    <li>
-                      • Kisi third party ke saath data share nahi kiya jaata
-                    </li>
-                    <li>
-                      • Profile info contractors ko job search ke liye dikhta
-                      hai
-                    </li>
-                    <li>
-                      • Location data nearby job matching ke liye use hota hai
-                    </li>
-                    <li>
-                      • Payment records encrypted format mein store hote hain
-                    </li>
-                    <li>
-                      • Aap kabhi bhi apna data download ya delete kar sakte
-                      hain
-                    </li>
-                  </ul>
-                </div>
-              )}
-            </div>
-
-            {/* Download Data */}
-            <div className="border-t border-border/40 pt-4">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                📥 Apna Data Download Karein
-              </p>
-              <p className="text-xs text-muted-foreground mb-3">
-                Apna poora profile data JSON format mein download karein
-              </p>
-              <Button
-                data-ocid="settings.privacy.download_button"
-                variant="outline"
-                className="w-full"
-                onClick={handleDownloadData}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Data Download Karein
-              </Button>
-            </div>
-          </div>
-        </Section>
-
-        {/* ── SECTION 4: Payments & Orders ── */}
-        <Section
-          id="payments_orders"
-          icon={<CreditCard className="w-5 h-5" />}
-          title="Payments & Orders"
-          subtitle="Payment history, methods, billing address"
-          isOpen={openSection === "payments_orders"}
-          onToggle={() => toggle("payments_orders")}
-        >
-          <div className="space-y-4">
-            {/* Quick Links */}
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                data-ocid="settings.payments.payment_history_link"
-                onClick={() => navigate({ to: "/payment-history" })}
-                className="flex items-center gap-2 p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 transition-colors text-left"
-              >
-                <History className="w-4 h-4 text-primary shrink-0" />
-                <div>
-                  <p className="text-xs font-semibold">Payment History</p>
-                  <p className="text-xs text-muted-foreground">
-                    Transactions dekhein
-                  </p>
-                </div>
-              </button>
-              <button
-                type="button"
-                data-ocid="settings.payments.wallet_link"
-                onClick={() => navigate({ to: "/worker-wallet" })}
-                className="flex items-center gap-2 p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 transition-colors text-left"
-              >
-                <CreditCard className="w-4 h-4 text-primary shrink-0" />
-                <div>
-                  <p className="text-xs font-semibold">My Wallet</p>
-                  <p className="text-xs text-muted-foreground">
-                    Balance dekhein
-                  </p>
-                </div>
-              </button>
-            </div>
-
-            {/* Saved Payment Methods */}
-            <div className="border-t border-border/40 pt-4">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                💳 Payment Methods Save Karein
-              </p>
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-xs font-semibold mb-1 block">
-                    UPI ID
-                  </Label>
-                  <Input
-                    data-ocid="settings.payments.upi_input"
-                    value={upiId}
-                    onChange={(e) => setUpiId(e.target.value)}
-                    placeholder="yourname@upi"
-                  />
-                  <Button
-                    data-ocid="settings.payments.save_upi_button"
-                    size="sm"
-                    variant="outline"
-                    className="mt-2 w-full"
-                    onClick={() => {
-                      localStorage.setItem(
-                        "kaam_mitra_payment_methods",
-                        JSON.stringify({ upiId, cardNumber, cardName }),
-                      );
-                      toast.success("UPI ID save ho gaya ✅");
-                    }}
-                  >
-                    UPI Save Karein
-                  </Button>
-                </div>
-                <div className="border-t border-border/40 pt-3">
-                  <Label className="text-xs font-semibold mb-1 block">
-                    Card (Last 4 digits)
-                  </Label>
-                  <Input
-                    data-ocid="settings.payments.card_input"
-                    value={cardNumber}
-                    onChange={(e) => setCardNumber(e.target.value)}
-                    placeholder="**** **** **** 1234"
-                    maxLength={4}
-                  />
-                  <Label className="text-xs font-semibold mb-1 block mt-2">
-                    Cardholder Name
-                  </Label>
-                  <Input
-                    value={cardName}
-                    onChange={(e) => setCardName(e.target.value)}
-                    placeholder="Naam jaise card par hai"
-                  />
-                  <Button
-                    data-ocid="settings.payments.save_card_button"
-                    size="sm"
-                    variant="outline"
-                    className="mt-2 w-full"
-                    onClick={handleSavePaymentMethods}
-                  >
-                    Card Save Karein
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Billing Address */}
-            <div className="border-t border-border/40 pt-4">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                🏠 Billing Address
-              </p>
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-xs font-semibold mb-1 block">
-                    Naam
-                  </Label>
-                  <Input
-                    data-ocid="settings.payments.billing_name_input"
-                    value={billingName}
-                    onChange={(e) => setBillingName(e.target.value)}
-                    placeholder="Poora naam"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs font-semibold mb-1 block">
-                    Address Line 1
-                  </Label>
-                  <Input
-                    data-ocid="settings.payments.billing_address_input"
-                    value={billingAddress}
-                    onChange={(e) => setBillingAddress(e.target.value)}
-                    placeholder="Ghar/mohalla/gali"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-xs font-semibold mb-1 block">
-                      City
-                    </Label>
-                    <Input
-                      data-ocid="settings.payments.billing_city_input"
-                      value={billingCity}
-                      onChange={(e) => setBillingCity(e.target.value)}
-                      placeholder="Shehar"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs font-semibold mb-1 block">
-                      Pincode
-                    </Label>
-                    <Input
-                      data-ocid="settings.payments.billing_pincode_input"
-                      value={billingPincode}
-                      onChange={(e) => setBillingPincode(e.target.value)}
-                      placeholder="6 digits"
-                      maxLength={6}
-                    />
-                  </div>
-                </div>
-                <Button
-                  data-ocid="settings.payments.save_billing_button"
-                  className="w-full"
-                  onClick={handleSaveBilling}
-                >
-                  Address Save Karein 🏠
-                </Button>
-              </div>
-            </div>
-          </div>
-        </Section>
-
-        {/* ── SECTION 5: Time Management / Notifications ── */}
-        <Section
-          id="time_management"
-          icon={<Bell className="w-5 h-5" />}
-          title="Time Management & Notifications"
-          subtitle="Job alerts, reminders, updates"
-          isOpen={openSection === "time_management"}
-          onToggle={() => toggle("time_management")}
-        >
-          <div className="space-y-3">
-            <p className="text-xs text-muted-foreground mb-2">
-              Kaunsi notifications receive karni hain choose karein:
-            </p>
-            {[
-              {
-                key: "job_alerts",
-                ocid: "settings.notifications.job_alerts_toggle",
-                label: "Job Alerts",
-                desc: "Nearby new jobs ki notifications",
-                value: notifJobAlerts,
-                setter: setNotifJobAlerts,
-              },
-              {
-                key: "booking",
-                ocid: "settings.notifications.booking_toggle",
-                label: "Booking Reminders",
-                desc: "Aane wali bookings ka reminder",
-                value: notifBooking,
-                setter: setNotifBooking,
-              },
-              {
-                key: "payment",
-                ocid: "settings.notifications.payment_toggle",
-                label: "Payment Reminders",
-                desc: "Pending payments aur wallet updates",
-                value: notifPayment,
-                setter: setNotifPayment,
-              },
-              {
-                key: "updates",
-                ocid: "settings.notifications.updates_toggle",
-                label: "App Updates & Announcements",
-                desc: "KaamMitra ke naye features",
-                value: notifUpdates,
-                setter: setNotifUpdates,
-              },
-            ].map((item) => (
-              <div
-                key={item.key}
-                className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/30"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm">{item.label}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {item.desc}
-                  </p>
-                </div>
-                <Switch
-                  data-ocid={item.ocid}
-                  checked={item.value}
-                  onCheckedChange={(checked) => {
-                    item.setter(checked);
+                <RadioGroup
+                  value={profileVisibility}
+                  onValueChange={(v) => {
+                    setProfileVisibility(
+                      v as "public" | "private" | "contacts",
+                    );
+                    localStorage.setItem("kaam_mitra_profile_visibility", v);
                   }}
-                />
-              </div>
-            ))}
-            <Button
-              variant="outline"
-              className="w-full mt-2"
-              onClick={handleSaveNotifications}
-            >
-              <Bell className="w-4 h-4 mr-2" />
-              Notifications Save Karein
-            </Button>
-          </div>
-        </Section>
-
-        {/* ── SECTION 6: Theme & Language ── */}
-        <Section
-          id="theme_language"
-          icon={<Globe className="w-5 h-5" />}
-          title="Theme & Language"
-          subtitle="Dark mode, preferred language"
-          isOpen={openSection === "theme_language"}
-          onToggle={() => toggle("theme_language")}
-        >
-          <div className="space-y-4">
-            <div>
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                🎨 Theme Choose Karein
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  data-ocid="settings.theme.light_button"
-                  variant={theme === "light" ? "default" : "outline"}
-                  className="w-full"
-                  onClick={() => applyTheme("light")}
+                  className="space-y-2"
                 >
-                  ☀️ Light
-                </Button>
-                <Button
-                  data-ocid="settings.theme.dark_button"
-                  variant={theme === "dark" ? "default" : "outline"}
-                  className="w-full"
-                  onClick={() => applyTheme("dark")}
-                >
-                  🌙 Dark
-                </Button>
-              </div>
-            </div>
-            <div className="border-t border-border/40 pt-4">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                🗣️ Language Select Karein
-              </p>
-              <Select value={language} onValueChange={handleLanguageChange}>
-                <SelectTrigger data-ocid="settings.theme.language_select">
-                  <SelectValue placeholder="Language chunein" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Hindi">हिंदी (Hindi)</SelectItem>
-                  <SelectItem value="English">English</SelectItem>
-                  <SelectItem value="Tamil">தமிழ் (Tamil)</SelectItem>
-                  <SelectItem value="Bengali">বাংলা (Bengali)</SelectItem>
-                  <SelectItem value="Telugu">తెలుగు (Telugu)</SelectItem>
-                  <SelectItem value="Marathi">मराठी (Marathi)</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground mt-2">
-                Selected: <strong>{language}</strong>
-              </p>
-            </div>
-          </div>
-        </Section>
-
-        {/* ── SECTION 7: Activity & History ── */}
-        <Section
-          id="activity_history"
-          icon={<Activity className="w-5 h-5" />}
-          title="Activity & History"
-          subtitle="Recent activity, search history"
-          isOpen={openSection === "activity_history"}
-          onToggle={() => toggle("activity_history")}
-        >
-          <div className="space-y-4">
-            <div>
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                🕐 Recent Activity
-              </p>
-              {activityLog.length === 0 ? (
-                <p
-                  data-ocid="settings.activity.empty_state"
-                  className="text-xs text-muted-foreground text-center py-4"
-                >
-                  Koi activity nahi mili
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {activityLog.slice(0, 5).map((item) => (
+                  {[
+                    {
+                      value: "public",
+                      label: "Public",
+                      desc: "Sabhi dekh sakte hain",
+                    },
+                    {
+                      value: "private",
+                      label: "Private",
+                      desc: "Sirf aap dekh sakte hain",
+                    },
+                    {
+                      value: "contacts",
+                      label: "Contacts Only",
+                      desc: "Sirf saved contacts",
+                    },
+                  ].map((opt) => (
                     <div
-                      key={item.action}
-                      className="flex items-start gap-3 p-3 rounded-xl bg-muted/30"
+                      key={opt.value}
+                      className="flex items-center gap-3 p-3 border border-border rounded-xl"
                     >
-                      <Clock className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                      <div>
-                        <p className="text-xs font-semibold text-foreground">
-                          {item.action}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.time}
-                        </p>
-                      </div>
+                      <RadioGroupItem
+                        value={opt.value}
+                        id={`vis-${opt.value}`}
+                        data-ocid="settings.security.radio"
+                      />
+                      <Label
+                        htmlFor={`vis-${opt.value}`}
+                        className="flex-1 cursor-pointer"
+                      >
+                        <span className="text-sm font-medium">{opt.label}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {opt.desc}
+                        </span>
+                      </Label>
                     </div>
                   ))}
-                </div>
-              )}
-            </div>
-            <div className="border-t border-border/40 pt-4">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">
-                🗑️ Search History Clear Karein
-              </p>
-              {historyCleared ? (
-                <div
-                  data-ocid="settings.activity.success_state"
-                  className="flex items-center gap-2 py-2"
-                >
-                  <CheckCircle2 className="w-4 h-4 text-green-600" />
-                  <span className="text-sm text-green-700 font-semibold">
-                    Search history clear ho gaya ✅
-                  </span>
-                </div>
-              ) : (
-                <Button
-                  data-ocid="settings.activity.clear_history_button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleClearSearchHistory}
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Search History Clear Karein
-                </Button>
-              )}
-            </div>
-          </div>
-        </Section>
-
-        {/* ── SECTION 8: Help & Support ── */}
-        <Section
-          id="help_support"
-          icon={<HelpCircle className="w-5 h-5" />}
-          title="Help & Support"
-          subtitle="FAQ, contact support, report a problem"
-          isOpen={openSection === "help_support"}
-          onToggle={() => toggle("help_support")}
-        >
-          <div className="space-y-5">
-            {/* FAQ */}
-            <div>
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                ❓ Aksar Puche Jaane Wale Sawal (FAQ)
-              </p>
-              <Accordion type="single" collapsible className="space-y-1">
-                <AccordionItem
-                  value="q1"
-                  className="border border-border/50 rounded-xl overflow-hidden px-3"
-                >
-                  <AccordionTrigger className="text-xs font-semibold py-3 hover:no-underline">
-                    Profile activate kaise hogi?
-                  </AccordionTrigger>
-                  <AccordionContent className="text-xs text-muted-foreground pb-3">
-                    Profile activate hone ke liye aapko apni category ke hisaab
-                    se registration fee pay karni hogi (UPI ya Razorpay).
-                    Payment verify hone ke baad profile automatically active ho
-                    jaati hai aur search results mein dikhne lagti hai.
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem
-                  value="q2"
-                  className="border border-border/50 rounded-xl overflow-hidden px-3"
-                >
-                  <AccordionTrigger className="text-xs font-semibold py-3 hover:no-underline">
-                    OTP nahi aaya?
-                  </AccordionTrigger>
-                  <AccordionContent className="text-xs text-muted-foreground pb-3">
-                    KaamMitra abhi demo OTP mode mein hai. OTP screen par hi
-                    dikh jaata hai (amber box mein). Real SMS delivery ke liye
-                    paid plan ki zaroorat hai. Agar OTP nahi dikh raha toh page
-                    refresh karein.
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem
-                  value="q3"
-                  className="border border-border/50 rounded-xl overflow-hidden px-3"
-                >
-                  <AccordionTrigger className="text-xs font-semibold py-3 hover:no-underline">
-                    Profile search mein nahi dikh rahi?
-                  </AccordionTrigger>
-                  <AccordionContent className="text-xs text-muted-foreground pb-3">
-                    Search mein dikhne ke liye yeh zaroori hai: (1) Mobile
-                    verify ho, (2) Payment complete ho, (3) Profile public ho
-                    (Privacy settings mein check karein). Teeno steps complete
-                    karne ke baad profile search mein aane lagti hai.
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem
-                  value="q4"
-                  className="border border-border/50 rounded-xl overflow-hidden px-3"
-                >
-                  <AccordionTrigger className="text-xs font-semibold py-3 hover:no-underline">
-                    Payment kaise karte hain?
-                  </AccordionTrigger>
-                  <AccordionContent className="text-xs text-muted-foreground pb-3">
-                    Do tarike hain: (1) UPI QR Code – Admin ka QR scan karein,
-                    payment karein, screenshot upload karein, admin verify
-                    karega. (2) Razorpay – Direct UPI/Card se pay karein,
-                    profile automatically active ho jaati hai.
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem
-                  value="q5"
-                  className="border border-border/50 rounded-xl overflow-hidden px-3"
-                >
-                  <AccordionTrigger className="text-xs font-semibold py-3 hover:no-underline">
-                    Account kaise delete karein?
-                  </AccordionTrigger>
-                  <AccordionContent className="text-xs text-muted-foreground pb-3">
-                    Settings mein "Account Deletion" section mein jaayein. Wahan
-                    aap account deactivate ya permanently delete kar sakte hain.
-                    Delete karne ke liye email confirmation zaroori hai.
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </div>
-
-            {/* Contact Support */}
-            <div className="border-t border-border/40 pt-4">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                💬 Contact Support
-              </p>
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-xs font-semibold mb-1 block">
-                    Aapka Naam
-                  </Label>
-                  <Input
-                    data-ocid="settings.support.contact_name_input"
-                    value={contactName}
-                    onChange={(e) => setContactName(e.target.value)}
-                    placeholder="Apna naam daalo"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs font-semibold mb-1 block">
-                    Message
-                  </Label>
-                  <Textarea
-                    data-ocid="settings.support.contact_message_textarea"
-                    value={contactMessage}
-                    onChange={(e) => setContactMessage(e.target.value)}
-                    placeholder="Apni problem ya query likhein..."
-                    rows={3}
-                  />
-                </div>
-                <Button
-                  data-ocid="settings.support.contact_submit_button"
-                  className="w-full"
-                  onClick={handleContactSupport}
-                >
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  Support Ko Bhejein
-                </Button>
+                </RadioGroup>
               </div>
-            </div>
 
-            {/* Report a Problem */}
-            <div className="border-t border-border/40 pt-4">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                🚨 Problem Report Karein
-              </p>
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-xs font-semibold mb-1 block">
-                    Category
-                  </Label>
-                  <Select
-                    value={reportCategory}
-                    onValueChange={setReportCategory}
-                  >
-                    <SelectTrigger data-ocid="settings.support.report_category_select">
-                      <SelectValue placeholder="Problem ki category chunein" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="bug">
-                        🐛 Bug / Technical Issue
-                      </SelectItem>
-                      <SelectItem value="fraud">
-                        ⚠️ Fraud / Fake Account
-                      </SelectItem>
-                      <SelectItem value="payment">💳 Payment Issue</SelectItem>
-                      <SelectItem value="other">📝 Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-xs font-semibold mb-1 block">
-                    Problem Describe Karein
-                  </Label>
-                  <Textarea
-                    data-ocid="settings.support.report_description_textarea"
-                    value={reportDescription}
-                    onChange={(e) => setReportDescription(e.target.value)}
-                    placeholder="Problem detail mein likhein..."
-                    rows={3}
-                  />
-                </div>
-                <Button
-                  data-ocid="settings.support.report_submit_button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleReportProblem}
-                >
-                  <AlertTriangle className="w-4 h-4 mr-2" />
-                  Report Submit Karein
-                </Button>
-              </div>
-            </div>
-          </div>
-        </Section>
+              {/* Show/Hide Phone */}
+              <SwitchRow
+                label="Phone Number Dikhayein"
+                description="Contractors ko number visible rahega"
+                checked={showPhoneNumber}
+                onCheckedChange={(v) => {
+                  setShowPhoneNumber(v);
+                  localStorage.setItem("kaam_mitra_show_phone", v.toString());
+                }}
+                ocid="settings.security.switch"
+              />
 
-        {/* ── SECTION 9: Account Deletion ── */}
-        <Section
-          id="account_deletion"
-          icon={<Trash2 className="w-5 h-5" />}
-          title="Account Deletion"
-          subtitle="Deactivate ya permanently delete"
-          isOpen={openSection === "account_deletion"}
-          onToggle={() => toggle("account_deletion")}
-          badge={
-            deactivated ? (
-              <Badge className="bg-amber-100 text-amber-700 border-amber-300 text-xs">
-                ⚠️ Deactivated
-              </Badge>
-            ) : undefined
-          }
-        >
-          <div className="space-y-4">
-            {/* Deactivate */}
-            <div>
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                ⏸️ Account Deactivate Karein
-              </p>
-              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200">
-                <div>
-                  <p className="font-semibold text-sm text-amber-800">
-                    Account Temporarily Deactivate
+              {/* Block Users */}
+              <button
+                type="button"
+                onClick={() => toast.info("Blocked users list coming soon")}
+                className="w-full flex items-center justify-between p-3 bg-muted/50 rounded-xl text-sm font-medium hover:bg-muted transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-orange-500" /> Blocked
+                  Users
+                </span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </button>
+
+              {/* Download Data */}
+              <Button
+                variant="outline"
+                onClick={handleDownloadData}
+                className="w-full text-sm"
+              >
+                <Download className="h-4 w-4 mr-2" /> Mera Data Download Karein
+              </Button>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* ── SECTION 3: Notifications ── */}
+          <AccordionItem
+            value="notifications"
+            data-ocid="settings.notifications_section"
+            className="border border-border rounded-2xl overflow-hidden bg-card shadow-sm"
+          >
+            <AccordionTrigger className="px-4 py-4 hover:no-underline hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-yellow-500/10 flex items-center justify-center">
+                  <Bell className="h-4 w-4 text-yellow-600" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-sm">
+                    Notification Preferences
                   </p>
-                  <p className="text-xs text-amber-700 mt-0.5">
-                    Profile search mein nahi dikhega, baad mein wapas activate
-                    kar sakte hain
+                  <p className="text-xs text-muted-foreground">
+                    Job alerts, messages, payments
                   </p>
                 </div>
-                <Switch
-                  data-ocid="settings.deletion.deactivate_toggle"
-                  checked={deactivated}
-                  onCheckedChange={handleDeactivateToggle}
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4">
+              <div className="space-y-0 pt-2">
+                <SwitchRow
+                  label="Job Alert Notifications"
+                  description="Nayi naukri ke alerts"
+                  checked={notifJobAlerts}
+                  onCheckedChange={setNotifJobAlerts}
+                  ocid="settings.job_alert_switch"
+                />
+                <SwitchRow
+                  label="Message Notifications"
+                  description="Naye messages ka notification"
+                  checked={notifMessages}
+                  onCheckedChange={setNotifMessages}
+                  ocid="settings.notifications.switch"
+                />
+                <SwitchRow
+                  label="Community Post Notifications"
+                  description="Community posts aur updates"
+                  checked={notifCommunity}
+                  onCheckedChange={setNotifCommunity}
+                  ocid="settings.notifications.switch"
+                />
+                <SwitchRow
+                  label="Payment Alert Notifications"
+                  description="Payment aur escrow alerts"
+                  checked={notifPayment}
+                  onCheckedChange={setNotifPayment}
+                  ocid="settings.notifications.switch"
+                />
+                <SwitchRow
+                  label="Booking Request Notifications"
+                  description="New booking requests"
+                  checked={notifBooking}
+                  onCheckedChange={setNotifBooking}
+                  ocid="settings.notifications.switch"
                 />
               </div>
-              {deactivated && (
-                <div className="mt-2 bg-amber-50 border border-amber-300 rounded-lg p-2">
-                  <p className="text-xs text-amber-800 font-medium">
-                    ⚠️ Account deactivated hai. Profile search results mein nahi
-                    dikhega. Dobara toggle karke activate karein.
+              <Button
+                onClick={handleSaveNotifications}
+                className="w-full mt-4 text-sm"
+                data-ocid="settings.save_button"
+              >
+                Notification Settings Save Karein
+              </Button>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* ── SECTION 4: Job Preferences ── */}
+          <AccordionItem
+            value="job-prefs"
+            data-ocid="settings.job_prefs_section"
+            className="border border-border rounded-2xl overflow-hidden bg-card shadow-sm"
+          >
+            <AccordionTrigger className="px-4 py-4 hover:no-underline hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                  <Briefcase className="h-4 w-4 text-emerald-600" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-sm">Job Preferences</p>
+                  <p className="text-xs text-muted-foreground">
+                    Category, salary, work radius
                   </p>
                 </div>
-              )}
-            </div>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">
+                  Preferred Work Category
+                </Label>
+                <Select
+                  value={jobPrefCategory}
+                  onValueChange={setJobPrefCategory}
+                >
+                  <SelectTrigger data-ocid="settings.job_prefs_section.select">
+                    <SelectValue placeholder="Category chunein" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.slice(0, 30).map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Permanent Delete */}
-            <div className="border-t border-border/40 pt-4">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                🗑️ Account Permanently Delete Karein
-              </p>
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-3">
-                <p className="text-xs text-red-700 font-semibold">
-                  ⚠️ Yeh action permanent hai!
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">
+                  Salary Expectation (per day ₹)
+                </Label>
+                <Input
+                  type="number"
+                  value={jobPrefSalary}
+                  onChange={(e) => setJobPrefSalary(e.target.value)}
+                  placeholder="e.g. 800"
+                  data-ocid="settings.job_prefs_section.input"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">
+                  Preferred Work Location
+                </Label>
+                <Input
+                  value={jobPrefLocation}
+                  onChange={(e) => setJobPrefLocation(e.target.value)}
+                  placeholder="e.g. Lucknow, Delhi, All India"
+                  data-ocid="settings.job_prefs_section.input"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Availability Type</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      { value: "fulltime", label: "Full Time" },
+                      { value: "parttime", label: "Part Time" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      type="button"
+                      key={opt.value}
+                      onClick={() => setJobAvailType(opt.value)}
+                      className={`py-2.5 rounded-xl text-sm font-medium border transition-all ${jobAvailType === opt.value ? "bg-primary text-primary-foreground border-primary" : "bg-muted border-border text-foreground"}`}
+                      data-ocid="settings.job_prefs_section.radio"
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Work Radius</Label>
+                <Select value={workRadius} onValueChange={setWorkRadius}>
+                  <SelectTrigger data-ocid="settings.job_prefs_section.select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5 KM</SelectItem>
+                    <SelectItem value="10">10 KM</SelectItem>
+                    <SelectItem value="25">25 KM</SelectItem>
+                    <SelectItem value="50">50 KM</SelectItem>
+                    <SelectItem value="all">All India</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button
+                onClick={handleSaveJobPrefs}
+                className="w-full text-sm"
+                data-ocid="settings.save_button"
+              >
+                Job Preferences Save Karein ✅
+              </Button>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* ── SECTION 5: Theme & Language ── */}
+          <AccordionItem
+            value="theme-lang"
+            className="border border-border rounded-2xl overflow-hidden bg-card shadow-sm"
+          >
+            <AccordionTrigger className="px-4 py-4 hover:no-underline hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-violet-500/10 flex items-center justify-center">
+                  <Globe className="h-4 w-4 text-violet-600" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-sm">Theme & Language</p>
+                  <p className="text-xs text-muted-foreground">
+                    Dark mode, Hindi/English
+                  </p>
+                </div>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4 space-y-4">
+              <SwitchRow
+                label="Dark Mode"
+                description={
+                  theme === "dark"
+                    ? "Dark mode on hai 🌙"
+                    : "Light mode on hai ☀️"
+                }
+                checked={theme === "dark"}
+                onCheckedChange={handleThemeToggle}
+                ocid="settings.theme.switch"
+              />
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Language</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {["Hindi", "English"].map((lang) => (
+                    <button
+                      type="button"
+                      key={lang}
+                      onClick={() => handleLanguageChange(lang)}
+                      className={`py-2.5 rounded-xl text-sm font-medium border transition-all ${language === lang ? "bg-primary text-primary-foreground border-primary" : "bg-muted border-border text-foreground"}`}
+                    >
+                      {lang}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* ── SECTION 6: About App ── */}
+          <AccordionItem
+            value="about"
+            data-ocid="settings.about_section"
+            className="border border-border rounded-2xl overflow-hidden bg-card shadow-sm"
+          >
+            <AccordionTrigger className="px-4 py-4 hover:no-underline hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-sky-500/10 flex items-center justify-center">
+                  <Info className="h-4 w-4 text-sky-600" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-sm">About App</p>
+                  <p className="text-xs text-muted-foreground">
+                    Version, terms, feedback
+                  </p>
+                </div>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4 space-y-4">
+              {/* Version */}
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
+                <span className="text-sm font-medium">App Version</span>
+                <Badge variant="outline">v2.0</Badge>
+              </div>
+
+              {/* About */}
+              <div className="p-3 bg-primary/5 rounded-xl space-y-2">
+                <p className="text-xs font-semibold text-primary">
+                  KaamMitra के बारे में
                 </p>
-                <p className="text-xs text-red-600 mt-1">
-                  Ek baar delete karne ke baad aapka poora data, profile,
-                  payment history — sab permanently remove ho jaayega. Yeh wapas
-                  nahi ho sakta.
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  KaamMitra India ka sabse bada labour marketplace hai jahan
+                  construction workers, drivers, domestic workers aur bahut se
+                  professionals apna kaam dhundh sakte hain. Hum contractors aur
+                  workers ko directly connect karte hain — bina kisi beech waale
+                  ke.
                 </p>
               </div>
+
+              {/* Links */}
+              {[
+                { label: "Terms & Conditions", icon: Lock },
+                { label: "Privacy Policy", icon: Shield },
+                { label: "Community Guidelines", icon: Users },
+              ].map(({ label, icon: Icon }) => (
+                <button
+                  type="button"
+                  key={label}
+                  onClick={() => toast.info(`${label} - Coming soon`)}
+                  className="w-full flex items-center justify-between p-3 bg-muted/50 rounded-xl text-sm font-medium hover:bg-muted transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <Icon className="h-4 w-4 text-muted-foreground" /> {label}
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </button>
+              ))}
+
+              {/* Rate App */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  App ko Rate Karein
+                </p>
+                <div className="flex gap-2 justify-center">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      type="button"
+                      key={star}
+                      onClick={() => {
+                        setRating(star);
+                        toast.success(`${star} star diya! Shukriya 🙏`);
+                      }}
+                    >
+                      <Star
+                        className={`h-8 w-8 transition-colors ${star <= rating ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground"}`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Feedback */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Feedback Bhejein
+                </p>
+                <Textarea
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  placeholder="Apna experience share karein ya naya feature suggest karein..."
+                  rows={3}
+                  data-ocid="settings.about_section.textarea"
+                />
+                <Button
+                  onClick={() => {
+                    if (!feedbackText.trim()) {
+                      toast.error("Feedback likhein");
+                      return;
+                    }
+                    toast.success("Feedback bhej diya! Shukriya 🙏");
+                    setFeedbackText("");
+                  }}
+                  className="w-full text-sm"
+                >
+                  <Send className="h-4 w-4 mr-2" /> Feedback Submit Karein
+                </Button>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* ── SECTION 7: Bonus Tools / Share ── */}
+          <AccordionItem
+            value="bonus"
+            data-ocid="settings.bonus_tools_section"
+            className="border border-border rounded-2xl overflow-hidden bg-card shadow-sm"
+          >
+            <AccordionTrigger className="px-4 py-4 hover:no-underline hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                  <Gift className="h-4 w-4 text-orange-500" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-sm">Bonus Tools & Share</p>
+                  <p className="text-xs text-muted-foreground">
+                    Referral, share app, quick links
+                  </p>
+                </div>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4 space-y-4">
+              {/* Referral Link */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Mera Referral Link
+                </p>
+                <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-xl">
+                  <p className="text-xs text-primary flex-1 truncate font-mono">
+                    {referralLink}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCopyReferral}
+                    className="shrink-0"
+                    data-ocid="settings.referral_copy_button"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Invite karein aur ₹10 wallet bonus paayein 💰
+                </p>
+              </div>
+
+              {/* Share App */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  KaamMitra Share Karein
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleShareWhatsApp}
+                    className="flex items-center gap-2 text-green-600 border-green-200 bg-green-50 hover:bg-green-100 text-sm"
+                    data-ocid="settings.share_whatsapp_button"
+                  >
+                    <MessageSquare className="h-4 w-4" /> WhatsApp
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleShareFacebook}
+                    className="flex items-center gap-2 text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100 text-sm"
+                  >
+                    <Facebook className="h-4 w-4" /> Facebook
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleShareTelegram}
+                    className="flex items-center gap-2 text-sky-600 border-sky-200 bg-sky-50 hover:bg-sky-100 text-sm"
+                  >
+                    <Send className="h-4 w-4" /> Telegram
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleCopyReferral}
+                    className="flex items-center gap-2 text-gray-600 border-gray-200 bg-gray-50 hover:bg-gray-100 text-sm"
+                  >
+                    <Copy className="h-4 w-4" /> Copy Link
+                  </Button>
+                </div>
+              </div>
+
+              {/* Worker Availability Share */}
+              <Button
+                variant="outline"
+                onClick={handleShareAvailability}
+                className="w-full flex items-center gap-2 text-sm text-green-700 border-green-200"
+              >
+                <Share2 className="h-4 w-4" /> Apni Availability WhatsApp par
+                Share Karein
+              </Button>
+
+              {/* Quick Links */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Quick Links
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    {
+                      label: "Nearby Jobs",
+                      to: "/find-work",
+                      icon: MapPin,
+                      color: "text-blue-600",
+                    },
+                    {
+                      label: "Rate Card",
+                      to: "/operator-poster",
+                      icon: Star,
+                      color: "text-yellow-600",
+                    },
+                    {
+                      label: "Operator Community",
+                      to: "/operator-poster",
+                      icon: Users,
+                      color: "text-purple-600",
+                    },
+                    {
+                      label: "Premium Plans",
+                      to: "/premium-plans",
+                      icon: Zap,
+                      color: "text-orange-600",
+                    },
+                  ].map(({ label, to, icon: Icon, color }) => (
+                    <button
+                      type="button"
+                      key={label}
+                      onClick={() => navigate({ to })}
+                      className="flex items-center gap-2 p-3 rounded-xl border border-border bg-muted/30 text-sm font-medium hover:bg-muted transition-colors"
+                    >
+                      <Icon className={`h-4 w-4 shrink-0 ${color}`} />
+                      <span className="text-xs">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* ── SECTION: Government Rules ── */}
+          {/* ── SECTION: Operator Ekta (Community) ── */}
+          <AccordionItem
+            value="operator-ekta"
+            className="border border-border rounded-2xl overflow-hidden bg-card shadow-sm"
+          >
+            <AccordionTrigger className="px-4 py-4 hover:no-underline hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+                  <Users className="h-4 w-4 text-indigo-600" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-sm">
+                    Operator Ekta (Community)
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    State groups, community posts
+                  </p>
+                </div>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4 space-y-2">
+              <p className="text-xs text-muted-foreground mb-2">
+                Apne state ke operators se connect karein aur ek-doosre ki madad
+                karein.
+              </p>
+              {[
+                {
+                  label: "Join State Group",
+                  emoji: "🏛️",
+                  ocid: "settings.ekta.join_group_button",
+                },
+                {
+                  label: "All India Operator Group",
+                  emoji: "🇮🇳",
+                  ocid: "settings.ekta.all_india_button",
+                },
+                {
+                  label: "Community Posts",
+                  emoji: "📝",
+                  ocid: "settings.ekta.community_button",
+                },
+                {
+                  label: "Worker Discussions",
+                  emoji: "💬",
+                  ocid: "settings.ekta.discussions_button",
+                },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  data-ocid={item.ocid}
+                  onClick={() => toast.info(`${item.label} — opening...`)}
+                  className="w-full flex items-center gap-3 bg-muted/40 hover:bg-muted rounded-xl p-3 transition-colors text-left"
+                >
+                  <span className="text-xl">{item.emoji}</span>
+                  <p className="text-sm font-medium">{item.label}</p>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto" />
+                </button>
+              ))}
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* ── SECTION: Payment Complaint ── */}
+          <AccordionItem
+            value="payment-complaint"
+            className="border border-border rounded-2xl overflow-hidden bg-card shadow-sm"
+          >
+            <AccordionTrigger className="px-4 py-4 hover:no-underline hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-sm">Payment Complaint</p>
+                  <p className="text-xs text-muted-foreground">
+                    Contractor alerts, warning list
+                  </p>
+                </div>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4 space-y-2">
+              <p className="text-xs text-muted-foreground mb-2">
+                Agar kisi contractor ne payment nahi di to yahan report karein.
+              </p>
+              {[
+                {
+                  label: "Submit Complaint",
+                  emoji: "📋",
+                  ocid: "settings.complaint.submit_button",
+                },
+                {
+                  label: "View Complaints",
+                  emoji: "👁️",
+                  ocid: "settings.complaint.view_button",
+                },
+                {
+                  label: "Payment Alert List",
+                  emoji: "⚠️",
+                  ocid: "settings.complaint.alert_button",
+                },
+                {
+                  label: "Contractor Warning",
+                  emoji: "🚫",
+                  ocid: "settings.complaint.warning_button",
+                },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  data-ocid={item.ocid}
+                  onClick={() => toast.info(`${item.label} — opening...`)}
+                  className="w-full flex items-center gap-3 bg-red-50 hover:bg-red-100 border border-red-100 rounded-xl p-3 transition-colors text-left"
+                >
+                  <span className="text-xl">{item.emoji}</span>
+                  <p className="text-sm font-medium text-red-800">
+                    {item.label}
+                  </p>
+                  <ChevronRight className="w-4 h-4 text-red-400 ml-auto" />
+                </button>
+              ))}
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem
+            value="govt-rules"
+            className="border border-border rounded-2xl overflow-hidden bg-card shadow-sm"
+          >
+            <AccordionTrigger className="px-4 py-4 hover:no-underline hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                  <span className="text-base">⚖️</span>
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-sm">Government Rules</p>
+                  <p className="text-xs text-muted-foreground">
+                    Minimum Wage, Labour Law, Worker Rights
+                  </p>
+                </div>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4 space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Sarkari niyam aur adhikar ki jankari yahan se prapt karein.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate({ to: "/min-wage" })}
+                className="w-full flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-xl hover:bg-orange-100 transition-colors"
+                data-ocid="settings.govt.min_wage_button"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">🇮🇳</span>
+                  <div className="text-left">
+                    <p className="font-semibold text-sm">न्यूनतम मजदूरी – भारत</p>
+                    <p className="text-xs text-muted-foreground">
+                      Government Minimum Wage Notification
+                    </p>
+                  </div>
+                </div>
+                <span className="text-muted-foreground text-xs">→</span>
+              </button>
+              <a
+                href="https://clc.gov.in/clc/min-wages"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-between p-3 bg-muted/50 border border-border rounded-xl hover:bg-muted transition-colors"
+                data-ocid="settings.govt.clc_link"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">🏛️</span>
+                  <div className="text-left">
+                    <p className="font-semibold text-sm">
+                      Chief Labour Commissioner
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      clc.gov.in – Official Source
+                    </p>
+                  </div>
+                </div>
+                <span className="text-muted-foreground text-xs">↗</span>
+              </a>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* ── SECTION 8: Help & Support ── */}
+          <AccordionItem
+            value="help"
+            className="border border-border rounded-2xl overflow-hidden bg-card shadow-sm"
+          >
+            <AccordionTrigger className="px-4 py-4 hover:no-underline hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-teal-500/10 flex items-center justify-center">
+                  <HelpCircle className="h-4 w-4 text-teal-600" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-sm">Help & Support</p>
+                  <p className="text-xs text-muted-foreground">
+                    Contact, FAQ, report a problem
+                  </p>
+                </div>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4 space-y-4">
+              {/* Contact Support */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Contact Support
+                </p>
+                <Input
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  placeholder="Aapka naam"
+                />
+                <Textarea
+                  value={contactMessage}
+                  onChange={(e) => setContactMessage(e.target.value)}
+                  placeholder="Kya problem hai? Batayein..."
+                  rows={3}
+                  data-ocid="settings.help.textarea"
+                />
+                <Button
+                  onClick={handleContactSupport}
+                  variant="outline"
+                  className="w-full text-sm"
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" /> Support ko Message
+                  Bhejein
+                </Button>
+              </div>
+
+              {/* FAQ */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  FAQ
+                </p>
+                {[
+                  {
+                    q: "Profile activate kaise hogi?",
+                    a: "Registration fee bharo, payment verify hone ke baad profile active ho jayegi.",
+                  },
+                  {
+                    q: "Verified badge kaise milega?",
+                    a: "Worker Verification page par jaao aur documents upload karo.",
+                  },
+                  {
+                    q: "Payment nahi aayi contractor se?",
+                    a: "Blacklist Contractor section mein complaint darj karein.",
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.q}
+                    className="p-3 bg-muted/50 rounded-xl space-y-1"
+                  >
+                    <p className="text-xs font-semibold">{item.q}</p>
+                    <p className="text-xs text-muted-foreground">{item.a}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Report Problem */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Report a Problem
+                </p>
+                <Select
+                  value={reportCategory}
+                  onValueChange={setReportCategory}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Problem category chunein" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[
+                      "App crash",
+                      "Payment issue",
+                      "Fake profile",
+                      "Harassment",
+                      "Other",
+                    ].map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Textarea
+                  value={reportDescription}
+                  onChange={(e) => setReportDescription(e.target.value)}
+                  placeholder="Problem detail mein batayein..."
+                  rows={3}
+                />
+                <Button
+                  onClick={handleReportProblem}
+                  variant="outline"
+                  className="w-full text-sm"
+                >
+                  <AlertTriangle className="h-4 w-4 mr-2" /> Report Submit
+                  Karein
+                </Button>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* ── SECTION 9: Account ── */}
+          <AccordionItem
+            value="account"
+            className="border border-border rounded-2xl overflow-hidden bg-card shadow-sm"
+          >
+            <AccordionTrigger className="px-4 py-4 hover:no-underline hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center">
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-sm">Account</p>
+                  <p className="text-xs text-muted-foreground">
+                    Logout, deactivate, delete
+                  </p>
+                </div>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-4 pb-4 space-y-3">
+              {/* Deactivate */}
+              <SwitchRow
+                label="Account Deactivate Karein"
+                description="Temporarily profile hide kar dein"
+                checked={deactivated}
+                onCheckedChange={handleDeactivateToggle}
+                ocid="settings.account.switch"
+              />
+              {deactivated && (
+                <Card className="p-3 bg-yellow-50 border-yellow-200">
+                  <p className="text-xs text-yellow-800">
+                    ⚠️ Aapka account abhi deactivate hai. Aap search results mein
+                    nahi dikhenge.
+                  </p>
+                </Card>
+              )}
+
+              {/* Logout */}
+              <Button
+                variant="outline"
+                onClick={handleLogout}
+                className="w-full text-sm border-destructive/30 text-destructive hover:bg-destructive/5"
+                data-ocid="settings.logout_button"
+              >
+                <LogOut className="h-4 w-4 mr-2" /> Logout
+              </Button>
+
+              {/* Delete Account */}
               <AlertDialog
                 open={deleteDialogOpen}
                 onOpenChange={setDeleteDialogOpen}
               >
                 <AlertDialogTrigger asChild>
                   <Button
-                    data-ocid="settings.deletion.delete_account_button"
                     variant="destructive"
-                    className="w-full"
+                    className="w-full text-sm"
+                    data-ocid="settings.delete_account_button"
                   >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Account Permanently Delete Karein
+                    <Trash2 className="h-4 w-4 mr-2" /> Account Permanently
+                    Delete Karein
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent>
+                <AlertDialogContent data-ocid="settings.account.dialog">
                   <AlertDialogHeader>
                     <AlertDialogTitle className="text-destructive">
-                      ⚠️ Account Delete Karna Chahte Hain?
+                      Account Delete?
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                      Yeh action undo nahi ho sakta. Aapka poora data
-                      permanently delete ho jaayega.
-                      <br />
-                      <br />
-                      Confirm karne ke liye apna registered email address neeche
-                      daalo:
+                      Yeh action permanent hai aur undo nahi ho sakta. Saara
+                      data delete ho jayega.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <div className="py-2">
-                    <Input
-                      data-ocid="settings.deletion.delete_email_input"
-                      type="email"
-                      value={deleteEmail}
-                      onChange={(e) => setDeleteEmail(e.target.value)}
-                      placeholder="Registered email address"
-                    />
-                  </div>
+                  <Input
+                    value={deleteEmail}
+                    onChange={(e) => setDeleteEmail(e.target.value)}
+                    placeholder="Confirm karne ke liye email daalo"
+                    type="email"
+                    className="mt-2"
+                    data-ocid="settings.account.input"
+                  />
                   <AlertDialogFooter>
-                    <AlertDialogCancel
-                      data-ocid="settings.deletion.delete_cancel_button"
-                      onClick={() => setDeleteEmail("")}
-                    >
-                      Cancel
+                    <AlertDialogCancel data-ocid="settings.account.cancel_button">
+                      Ruk Jao
                     </AlertDialogCancel>
                     <AlertDialogAction
-                      data-ocid="settings.deletion.delete_confirm_button"
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       onClick={handleDeleteAccount}
+                      className="bg-destructive hover:bg-destructive/90"
+                      data-ocid="settings.account.confirm_button"
                     >
-                      Haan, Permanently Delete Karein
+                      Haan, Delete Karo
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+
+              <p className="text-xs text-center text-muted-foreground">
+                Help ke liye{" "}
+                <a
+                  href="mailto:support@kaammitra.app"
+                  className="text-primary underline"
+                >
+                  support@kaammitra.app
+                </a>{" "}
+                par contact karein
+              </p>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+
+        {/* Advanced Settings Button */}
+        <button
+          type="button"
+          data-ocid="settings.advanced_settings_button"
+          onClick={() => navigate({ to: "/advanced-settings" })}
+          className="w-full flex items-center justify-between bg-muted/50 hover:bg-muted border border-border rounded-2xl px-4 py-4 transition-colors mb-2"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+              <Settings2 className="w-5 h-5 text-slate-600" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-sm">Advanced Settings</p>
+              <p className="text-xs text-muted-foreground">
+                Language, privacy, storage, docs
+              </p>
             </div>
           </div>
-        </Section>
+          <ChevronRight className="w-5 h-5 text-muted-foreground" />
+        </button>
 
-        {/* ── Logout ── */}
-        <Card className="overflow-hidden border border-destructive/30 shadow-sm">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <button
-                type="button"
-                data-ocid="settings.logout.open_modal_button"
-                className="w-full flex items-center gap-3 p-4 text-left hover:bg-destructive/5 transition-colors active:bg-destructive/10"
-              >
-                <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
-                  <LogOut className="w-5 h-5 text-destructive" />
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-destructive text-sm">
-                    Logout
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    Account se bahar jaao
-                  </div>
-                </div>
-              </button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Logout karna chahte hain?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Aapka profile aur contractor account remove ho jaayega. Kya
-                  aap confirm karte hain?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel data-ocid="settings.logout.cancel_button">
-                  Nahi, Raho
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  data-ocid="settings.logout.confirm_button"
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={handleLogout}
-                >
-                  Haan, Logout Karein
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </Card>
+        {/* Prominent Logout */}
+        <Button
+          data-ocid="settings.main_logout_button"
+          className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold h-12 rounded-2xl text-sm mb-4"
+          onClick={() => {
+            localStorage.clear();
+            toast.success("Logout ho gaye! 👋");
+            navigate({ to: "/" });
+          }}
+        >
+          <LogOut className="w-4 h-4 mr-2" /> Logout / Bahar Jaayein
+        </Button>
+
+        {/* Footer */}
+        <div className="mt-6 text-center space-y-1">
+          <p className="text-xs text-muted-foreground">
+            © {new Date().getFullYear()}.{" "}
+            <a
+              href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-foreground"
+            >
+              Built with ❤️ using caffeine.ai
+            </a>
+          </p>
+          <p className="text-xs text-muted-foreground">
+            KaamMitra v2.0 · India ka Labour Marketplace
+          </p>
+        </div>
       </div>
-
-      {/* Footer */}
-      <footer className="text-center text-xs text-muted-foreground py-6 mt-4">
-        <p>
-          © {new Date().getFullYear()}. Built with ❤️ using{" "}
-          <a
-            href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-foreground transition-colors"
-          >
-            caffeine.ai
-          </a>
-        </p>
-      </footer>
     </div>
   );
 }
