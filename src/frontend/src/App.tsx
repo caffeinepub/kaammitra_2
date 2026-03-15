@@ -278,7 +278,7 @@ function LayoutWrapper() {
           <div
             style={{
               background:
-                "linear-gradient(160deg, #1A0800 0%, #0A0400 60%, #000000 100%)",
+                "linear-gradient(160deg, #000000 0%, #1A0500 45%, #7A1800 100%)",
               boxShadow: "0 4px 12px rgba(0,0,0,0.35)",
             }}
           >
