@@ -1,24 +1,10 @@
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Bell, Mic } from "lucide-react";
+import { Mic } from "lucide-react";
 import { motion } from "motion/react";
 import { useRef, useState } from "react";
-import { MainMenu } from "../components/MainMenu";
 import { useActor } from "../hooks/useActor";
-import {
-  type AppNotification,
-  CATEGORY_EMOJIS,
-  MAIN_CATEGORIES,
-  getMyExtendedProfile,
-  getNotificationsForUser,
-  markNotificationsRead,
-} from "../lib/constants";
+import { CATEGORY_EMOJIS, MAIN_CATEGORIES } from "../lib/constants";
 
 // 4 main action tiles — large rectangular
 const ACTIONS = [
@@ -166,25 +152,6 @@ export function Home() {
     appContent?.bannerText || "Connect with skilled workers & contractors";
   const announcement = appContent?.announcement || "";
 
-  const [notifSheetOpen, setNotifSheetOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const myProfile = getMyExtendedProfile();
-  const myMobile = myProfile?.mobile ?? "";
-  const [notifications, setNotifications] = useState<AppNotification[]>(() =>
-    myMobile ? getNotificationsForUser(myMobile) : [],
-  );
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  function openNotifications() {
-    const latest = myMobile ? getNotificationsForUser(myMobile) : [];
-    setNotifications(latest);
-    setNotifSheetOpen(true);
-    if (myMobile) {
-      markNotificationsRead(myMobile);
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    }
-  }
-
   const hasContractorProfile = !!localStorage.getItem("contractorProfile");
 
   function handleCardNav(card: (typeof ACTION_CARDS)[0]) {
@@ -236,39 +203,6 @@ export function Home() {
             {homeText}
           </p>
           <p className="text-xs opacity-70">{bannerText}</p>
-          {myMobile && (
-            <button
-              type="button"
-              data-ocid="home.notifications_button"
-              onClick={openNotifications}
-              className="mt-3 flex items-center gap-1.5 text-white opacity-80 hover:opacity-100 transition-opacity"
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                fontFamily: "'Poppins', sans-serif",
-                fontSize: "12px",
-                fontWeight: 600,
-              }}
-            >
-              <Bell className="w-4 h-4" />
-              <span>Notifications</span>
-              {unreadCount > 0 && (
-                <span
-                  style={{
-                    background: "#fff",
-                    color: "#E65100",
-                    borderRadius: "10px",
-                    padding: "1px 6px",
-                    fontSize: "10px",
-                    fontWeight: 700,
-                  }}
-                >
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-          )}
         </motion.div>
       </div>
 
@@ -513,77 +447,6 @@ export function Home() {
           ))}
         </div>
       </div>
-
-      <MainMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
-
-      {/* Notification Sheet */}
-      <Sheet open={notifSheetOpen} onOpenChange={setNotifSheetOpen}>
-        <SheetContent
-          data-ocid="home.notifications_sheet"
-          side="right"
-          className="w-[90vw] max-w-sm"
-        >
-          <SheetHeader className="pb-4">
-            <SheetTitle
-              className="font-black flex items-center gap-2"
-              style={{ fontFamily: "'Poppins', sans-serif" }}
-            >
-              <Bell className="w-5 h-5" /> Notifications
-            </SheetTitle>
-          </SheetHeader>
-          {notifications.length === 0 ? (
-            <div
-              data-ocid="home.notifications.empty_state"
-              className="text-center py-12"
-            >
-              <p className="text-3xl mb-2">🔔</p>
-              <p className="font-semibold text-foreground">
-                Koi notification nahi
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Sab aapdo pe!
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3 overflow-y-auto max-h-[75vh] pr-1">
-              {notifications.map((n) => {
-                const mins = Math.floor((Date.now() - n.createdAt) / 60000);
-                const timeAgo =
-                  mins < 1
-                    ? "Abhi"
-                    : mins < 60
-                      ? `${mins}m ago`
-                      : `${Math.floor(mins / 60)}h ago`;
-                return (
-                  <div
-                    key={n.id}
-                    className={`rounded-2xl p-3 border ${
-                      n.read
-                        ? "bg-gray-50 border-gray-200"
-                        : "bg-orange-50 border-orange-200"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-bold text-foreground leading-snug">
-                        {n.title}
-                      </p>
-                      {!n.read && (
-                        <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-1.5" />
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {n.body}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      {timeAgo}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
 
       {/* Footer */}
       <footer className="text-center text-xs text-gray-400 py-4">

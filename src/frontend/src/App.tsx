@@ -1,3 +1,9 @@
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -10,10 +16,16 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { Bell, Menu, Search, User } from "lucide-react";
+import { Bell, MoreVertical } from "lucide-react";
 import { useEffect, useState } from "react";
 import { MainMenu } from "./components/MainMenu";
-import { setOnlineStatus } from "./lib/constants";
+import {
+  type AppNotification,
+  getMyExtendedProfile,
+  getNotificationsForUser,
+  markNotificationsRead,
+  setOnlineStatus,
+} from "./lib/constants";
 import AIModerationDashboard from "./pages/AIModerationDashboard";
 import AdminPanel from "./pages/AdminPanel";
 import { AdvancedSettings } from "./pages/AdvancedSettings";
@@ -67,6 +79,7 @@ const TOP_TABS = [
     ocid: "header.workers_tab",
   },
   { path: "/find-work" as const, label: "Jobs", ocid: "header.jobs_tab" },
+  { path: null as null, label: "Menu", ocid: "header.menu_tab" },
 ];
 
 function LayoutWrapper() {
@@ -78,6 +91,25 @@ function LayoutWrapper() {
   const isVoiceSearch = currentPath === "/voice-search";
 
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Notification state
+  const [notifSheetOpen, setNotifSheetOpen] = useState(false);
+  const myProfile = getMyExtendedProfile();
+  const myMobile = myProfile?.mobile ?? "";
+  const [notifications, setNotifications] = useState<AppNotification[]>(() =>
+    myMobile ? getNotificationsForUser(myMobile) : [],
+  );
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  function openNotifications() {
+    const latest = myMobile ? getNotificationsForUser(myMobile) : [];
+    setNotifications(latest);
+    setNotifSheetOpen(true);
+    if (myMobile) {
+      markNotificationsRead(myMobile);
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    }
+  }
 
   useEffect(() => {
     try {
@@ -103,13 +135,17 @@ function LayoutWrapper() {
     return () => window.removeEventListener("beforeunload", handleUnload);
   }, []);
 
+  void navigate;
+
   if (isAdmin || isPosterPage || isVoiceSearch) {
     return <Outlet />;
   }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
+      {/* ── HEADER ─────────────────────────────────────────────────────────── */}
+      {/* Layout: [Bell]  [KaamMitra — center]  [Three-dot]
+          Below:  [Home]  [Workers]  [Jobs]  [Menu] text tabs              */}
       <header
         className="sticky top-0 z-40 bg-white"
         style={{
@@ -118,16 +154,56 @@ function LayoutWrapper() {
         }}
         data-ocid="header.navbar"
       >
-        {/* Top Row: Logo + Right Icons */}
+        {/* Top Row */}
         <div
           className="max-w-[520px] mx-auto"
           style={{
-            display: "flex",
-            justifyContent: "space-between",
+            display: "grid",
+            gridTemplateColumns: "40px 1fr 40px",
             alignItems: "center",
-            padding: "10px 16px 0 16px",
+            padding: "10px 12px 0 12px",
+            gap: "4px",
           }}
         >
+          {/* Left: Bell icon only */}
+          <button
+            type="button"
+            onClick={openNotifications}
+            aria-label="Notifications"
+            data-ocid="header.notifications_button"
+            style={{
+              background: "none",
+              width: "36px",
+              height: "36px",
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "none",
+              cursor: "pointer",
+              color: "#555",
+              position: "relative",
+            }}
+          >
+            <Bell size={20} />
+            {/* Only show dot when there are unread notifications — no badge on empty */}
+            {unreadCount > 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: "6px",
+                  right: "6px",
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  background: "#E65100",
+                  border: "1.5px solid white",
+                }}
+              />
+            )}
+          </button>
+
+          {/* Center: App name / logo */}
           <Link
             to="/"
             data-ocid="header.logo_link"
@@ -139,78 +215,38 @@ function LayoutWrapper() {
               textDecoration: "none",
               lineHeight: 1,
               fontFamily: "'Poppins', sans-serif",
+              textAlign: "center",
+              display: "block",
             }}
           >
             KaamMitra
           </Link>
 
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            <button
-              type="button"
-              onClick={() => navigate({ to: "/find-work" })}
-              aria-label="Search jobs"
-              data-ocid="header.search_button"
-              style={{
-                background: "#f0f2f5",
-                width: "36px",
-                height: "36px",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: "none",
-                cursor: "pointer",
-                color: "#555",
-              }}
-            >
-              <Search size={16} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigate({ to: "/" })}
-              aria-label="Notifications"
-              data-ocid="header.notifications_button"
-              style={{
-                background: "#f0f2f5",
-                width: "36px",
-                height: "36px",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: "none",
-                cursor: "pointer",
-                color: "#555",
-              }}
-            >
-              <Bell size={16} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigate({ to: "/settings" })}
-              aria-label="Profile"
-              data-ocid="header.profile_button"
-              style={{
-                background: "#f0f2f5",
-                width: "36px",
-                height: "36px",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: "none",
-                cursor: "pointer",
-                color: "#555",
-              }}
-            >
-              <User size={16} />
-            </button>
-          </div>
+          {/* Right: Three-dot menu */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Main menu"
+            data-ocid="header.menu_button"
+            style={{
+              background: "none",
+              width: "36px",
+              height: "36px",
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "none",
+              cursor: "pointer",
+              color: "#555",
+              marginLeft: "auto",
+            }}
+          >
+            <MoreVertical size={20} />
+          </button>
         </div>
 
-        {/* Bottom Tab Row: text-only centered tabs */}
+        {/* Tab Row: Home | Workers | Jobs | Menu */}
         <div
           className="max-w-[520px] mx-auto"
           style={{
@@ -221,7 +257,34 @@ function LayoutWrapper() {
           }}
         >
           {TOP_TABS.map((tab) => {
-            const isActive = currentPath === tab.path;
+            const isActive = tab.path !== null && currentPath === tab.path;
+            if (tab.path === null) {
+              return (
+                <button
+                  key="menu"
+                  type="button"
+                  data-ocid={tab.ocid}
+                  onClick={() => setMenuOpen(true)}
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "10px 4px",
+                    background: "none",
+                    border: "none",
+                    borderBottom: "3px solid transparent",
+                    cursor: "pointer",
+                    color: "#65676b",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    fontFamily: "'Poppins', sans-serif",
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            }
             return (
               <Link
                 key={tab.path}
@@ -248,31 +311,6 @@ function LayoutWrapper() {
               </Link>
             );
           })}
-          {/* Menu tab — text only */}
-          <button
-            type="button"
-            data-ocid="header.menu_tab"
-            onClick={() => setMenuOpen(true)}
-            style={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "4px",
-              padding: "10px 4px",
-              background: "none",
-              border: "none",
-              borderBottom: "3px solid transparent",
-              cursor: "pointer",
-              color: "#65676b",
-              fontSize: "13px",
-              fontWeight: 700,
-              fontFamily: "'Poppins', sans-serif",
-            }}
-          >
-            <Menu size={14} strokeWidth={2.5} />
-            <span>Menu</span>
-          </button>
         </div>
       </header>
 
@@ -405,6 +443,76 @@ function LayoutWrapper() {
       </nav>
 
       <MainMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
+
+      {/* Notification Sheet */}
+      <Sheet open={notifSheetOpen} onOpenChange={setNotifSheetOpen}>
+        <SheetContent
+          data-ocid="header.notifications_sheet"
+          side="right"
+          className="w-[90vw] max-w-sm"
+        >
+          <SheetHeader className="pb-4">
+            <SheetTitle
+              className="font-black flex items-center gap-2"
+              style={{ fontFamily: "'Poppins', sans-serif" }}
+            >
+              <Bell className="w-5 h-5" /> Notifications
+            </SheetTitle>
+          </SheetHeader>
+          {notifications.length === 0 ? (
+            <div
+              data-ocid="header.notifications.empty_state"
+              className="text-center py-12"
+            >
+              <p className="text-3xl mb-2">🔔</p>
+              <p className="font-semibold text-foreground">
+                Koi notification nahi
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Sab aapdo pe!
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3 overflow-y-auto max-h-[75vh] pr-1">
+              {notifications.map((n) => {
+                const mins = Math.floor((Date.now() - n.createdAt) / 60000);
+                const timeAgo =
+                  mins < 1
+                    ? "Abhi"
+                    : mins < 60
+                      ? `${mins}m ago`
+                      : `${Math.floor(mins / 60)}h ago`;
+                return (
+                  <div
+                    key={n.id}
+                    className={`rounded-2xl p-3 border ${
+                      n.read
+                        ? "bg-gray-50 border-gray-200"
+                        : "bg-orange-50 border-orange-200"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-bold text-foreground leading-snug">
+                        {n.title}
+                      </p>
+                      {!n.read && (
+                        <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 mt-1.5" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {n.body}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      {timeAgo}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
       <Toaster />
     </div>
   );
