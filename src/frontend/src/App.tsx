@@ -268,8 +268,8 @@ function LayoutWrapper() {
               KaamMitra
             </Link>
 
-            {/* Right: spacer (mirrors left button width) */}
-            <div style={{ width: "36px" }} />
+            {/* Right: spacer for center alignment */}
+            <div style={{ width: "44px" }} />
           </div>
         </div>
 

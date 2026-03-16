@@ -1,47 +1,39 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Mic } from "lucide-react";
-import { motion } from "motion/react";
+import { Camera, Mic } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
 import { useActor } from "../hooks/useActor";
+import { useScreenshot } from "../hooks/useScreenshot";
 import { CATEGORY_EMOJIS, MAIN_CATEGORIES } from "../lib/constants";
 
-// 4 main action tiles — large rectangular 2x2 grid
 const ACTIONS = [
   {
     path: "/find-work" as const,
     emoji: "💼",
     label: "Kaam Dhundho",
-    sublabel: "Job khojo",
-    bg: "#FF6F00",
     ocid: "home.find_work_button",
   },
   {
     path: "/find-worker" as const,
     emoji: "👷",
     label: "Worker Dhundho",
-    sublabel: "Worker khojo",
-    bg: "#E65100",
     ocid: "home.find_worker_button",
   },
   {
     path: "/post-job" as const,
-    emoji: "📋",
+    emoji: "📝",
     label: "Job Do",
-    sublabel: "Job post karo",
-    bg: "#F4511E",
     ocid: "home.post_job_button",
   },
   {
     path: "/contact" as const,
     emoji: "📞",
     label: "Sampark Karo",
-    sublabel: "Contact karo",
-    bg: "#BF360C",
     ocid: "home.contact_button",
   },
 ];
 
-// 10 action cards with icon bg color + sublabel — horizontal card layout
 const ACTION_CARDS = [
   {
     emoji: "👷",
@@ -135,9 +127,71 @@ const ACTION_CARDS = [
   },
 ];
 
+// Per-category accent — card bg, left border, chip colors, header text
+const CATEGORY_STYLE: Record<
+  string,
+  {
+    cardBg: string;
+    borderColor: string;
+    chipBorder: string;
+    chipColor: string;
+    headerColor: string;
+  }
+> = {
+  construction: {
+    cardBg: "#fff3e0",
+    borderColor: "#ff9800",
+    chipBorder: "rgba(255,152,0,0.3)",
+    chipColor: "#a0522d",
+    headerColor: "#e65100",
+  },
+  office: {
+    cardBg: "#e3f2fd",
+    borderColor: "#2196f3",
+    chipBorder: "rgba(33,150,243,0.25)",
+    chipColor: "#1565c0",
+    headerColor: "#1565c0",
+  },
+  mechanical: {
+    cardBg: "#f3f3f3",
+    borderColor: "#607d8b",
+    chipBorder: "rgba(96,125,139,0.25)",
+    chipColor: "#37474f",
+    headerColor: "#37474f",
+  },
+  driver: {
+    cardBg: "#e8f5e9",
+    borderColor: "#4caf50",
+    chipBorder: "rgba(76,175,80,0.25)",
+    chipColor: "#2e7d32",
+    headerColor: "#2e7d32",
+  },
+  transport: {
+    cardBg: "#e0f2f1",
+    borderColor: "#009688",
+    chipBorder: "rgba(0,150,136,0.25)",
+    chipColor: "#00695c",
+    headerColor: "#00695c",
+  },
+};
+
+function getCatStyle(id: string) {
+  return (
+    CATEGORY_STYLE[id] || {
+      cardBg: "#fff8e1",
+      borderColor: "#ff9800",
+      chipBorder: "rgba(0,0,0,0.08)",
+      chipColor: "#e65100",
+      headerColor: "#e65100",
+    }
+  );
+}
+
 export function Home() {
   const navigate = useNavigate();
   const { actor, isFetching } = useActor();
+  const { downloadScreenshot, isCapturing } = useScreenshot();
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const { data: appContent } = useQuery({
     queryKey: ["appContent"],
@@ -166,14 +220,82 @@ export function Home() {
     }
   }
 
+  async function handleScreenshot() {
+    const ok = await downloadScreenshot("kaammitra-screenshot.png");
+    if (ok) {
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2500);
+    }
+  }
+
   return (
-    <div className="page-container pt-2 pb-28">
-      {/* ── Announcement Banner ──────────────────────────────────────────── */}
+    <div className="page-container pt-0 pb-28">
+      {/* ── Main Header — #ff4e50 → #f9d423 gradient, rounded bottom corners ─ */}
+      <motion.header
+        className="main-header -mx-4 mb-3"
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        style={{
+          background: "linear-gradient(135deg, #ff4e50, #f9d423)",
+          color: "white",
+          padding: "20px",
+          textAlign: "left",
+          borderRadius: "0 0 20px 20px",
+        }}
+      >
+        <span
+          style={{
+            display: "block",
+            fontSize: "10px",
+            fontWeight: 700,
+            letterSpacing: "0.1em",
+            opacity: 0.8,
+            fontFamily: "'Poppins', sans-serif",
+            marginBottom: "4px",
+          }}
+        >
+          🇮🇳 INDIA&apos;S OWN
+        </span>
+        <h1
+          style={{
+            margin: 0,
+            fontSize: "24px",
+            fontWeight: 900,
+            fontFamily: "'Poppins', sans-serif",
+            lineHeight: 1.1,
+          }}
+        >
+          KaamMitra
+        </h1>
+        <p
+          style={{
+            margin: "5px 0 0",
+            fontSize: "12px",
+            opacity: 0.9,
+            fontFamily: "'Poppins', sans-serif",
+          }}
+        >
+          KaamMitra — Apka Vishwas, Hamari Zimmedari
+        </p>
+        <p
+          style={{
+            margin: "3px 0 0",
+            fontSize: "11px",
+            opacity: 0.75,
+            fontFamily: "'Poppins', sans-serif",
+          }}
+        >
+          Sankalp Bharat, Shrestha Bharat
+        </p>
+      </motion.header>
+
+      {/* ── Announcement Banner ─────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="-mx-4 mb-4 px-4 py-2.5 bg-amber-50 border-y border-amber-200 flex items-start gap-2"
+        className="-mx-4 mb-3 px-4 py-2.5 bg-amber-50 border-y border-amber-200 flex items-start gap-2"
         data-ocid="home.announcement_banner"
       >
         <span className="text-amber-600 text-base leading-none mt-0.5">📢</span>
@@ -185,48 +307,62 @@ export function Home() {
         </p>
       </motion.div>
 
-      {/* ── 4 Main Action Tiles — 2x2 grid ──────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      {/* ── Quick Actions — 4-column grid ───────────────────────────────── */}
+      <div
+        className="quick-actions"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: "10px",
+          padding: "15px 0",
+          marginBottom: "4px",
+        }}
+      >
         {ACTIONS.map((action, i) => (
           <motion.button
             key={action.path}
             data-ocid={action.ocid}
-            initial={{ opacity: 0, y: 18 }}
+            initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.06 + i * 0.06, duration: 0.35 }}
-            whileTap={{ scale: 0.95 }}
+            transition={{ delay: 0.08 + i * 0.05, duration: 0.3 }}
+            whileTap={{ scale: 0.94 }}
             onClick={() => navigate({ to: action.path })}
-            className="flex flex-col items-center justify-center gap-2"
+            className="action-card"
             style={{
-              background: action.bg,
+              background: "white",
+              padding: "10px 5px",
+              textAlign: "center",
+              borderRadius: "10px",
+              boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+              fontSize: "10px",
+              fontWeight: "bold",
+              fontFamily: "'Poppins', sans-serif",
               border: "none",
-              borderRadius: "14px",
-              padding: "18px 10px",
               cursor: "pointer",
-              minHeight: "90px",
-              boxShadow: "0 3px 10px rgba(0,0,0,0.18)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "4px",
+              color: "#333",
             }}
           >
-            <span style={{ fontSize: "28px", lineHeight: 1 }}>
+            <span
+              className="icon"
+              style={{
+                display: "block",
+                fontSize: "20px",
+                marginBottom: "5px",
+                lineHeight: 1,
+              }}
+            >
               {action.emoji}
             </span>
-            <span
-              className="text-white font-bold text-center leading-tight"
-              style={{ fontFamily: "'Poppins', sans-serif", fontSize: "12px" }}
-            >
-              {action.label}
-            </span>
-            <span
-              className="text-white opacity-75 text-center"
-              style={{ fontFamily: "'Poppins', sans-serif", fontSize: "10px" }}
-            >
-              {action.sublabel}
-            </span>
+            <span>{action.label}</span>
           </motion.button>
         ))}
       </div>
 
-      {/* ── Voice Search Banner ──────────────────────────────────────────── */}
+      {/* ── Voice Search Banner ───────────────────────────────────────── */}
       <motion.button
         data-ocid="home.voice_search_button"
         initial={{ opacity: 0, y: 14 }}
@@ -239,41 +375,56 @@ export function Home() {
           background: "linear-gradient(135deg, #FF6F00, #e53935)",
           borderRadius: "14px",
           padding: "14px 16px",
-          boxShadow: "0 4px 14px rgba(255, 111, 0, 0.3)",
+          boxShadow: "0 4px 14px rgba(255,111,0,0.3)",
           border: "none",
           cursor: "pointer",
         }}
       >
         <div
-          className="flex items-center justify-center shrink-0"
           style={{
             width: "44px",
             height: "44px",
             borderRadius: "50%",
             background: "rgba(255,255,255,0.25)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
           }}
         >
           <Mic className="w-5 h-5 text-white" />
         </div>
         <div className="flex-1">
           <div
-            className="text-base font-black"
-            style={{ fontFamily: "'Poppins', sans-serif" }}
+            style={{
+              fontFamily: "'Poppins', sans-serif",
+              fontSize: "15px",
+              fontWeight: 900,
+            }}
           >
             🎤 Bolkar Kaam Dhundo
           </div>
-          <div className="text-xs opacity-80">
+          <div style={{ fontSize: "11px", opacity: 0.85 }}>
             Aawaaz se job dhundhein — Hindi, Hinglish, English
           </div>
         </div>
-        <span className="text-lg font-bold opacity-70">›</span>
+        <span style={{ fontSize: "18px", fontWeight: 700, opacity: 0.7 }}>
+          ›
+        </span>
       </motion.button>
 
-      {/* ── 10 Action Cards — 2-column horizontal card grid ─────────────── */}
+      {/* ── Services — 10 action cards, 2-col grid ───────────────────────── */}
       <div className="mb-4">
         <h2
-          className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3"
-          style={{ fontFamily: "'Poppins', sans-serif" }}
+          style={{
+            fontFamily: "'Poppins', sans-serif",
+            fontSize: "12px",
+            fontWeight: 700,
+            color: "#666",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            marginBottom: "10px",
+          }}
         >
           Services
         </h2>
@@ -287,7 +438,6 @@ export function Home() {
               transition={{ delay: 0.1 + i * 0.04, duration: 0.3 }}
               whileTap={{ scale: 0.96 }}
               onClick={() => handleCardNav(card)}
-              className="flex items-center gap-2.5 p-3"
               style={{
                 background: "#ffffff",
                 border: "1px solid #f0f0f0",
@@ -295,51 +445,60 @@ export function Home() {
                 boxShadow: "0 1px 6px rgba(0,0,0,0.06)",
                 cursor: "pointer",
                 textAlign: "left",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                padding: "12px",
               }}
             >
-              {/* Colored square icon */}
               <div
                 style={{
-                  width: "44px",
-                  height: "44px",
+                  width: "40px",
+                  height: "40px",
                   borderRadius: "10px",
                   background: card.iconBg,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: "22px",
+                  fontSize: "20px",
                   flexShrink: 0,
                 }}
               >
                 {card.emoji}
               </div>
-              {/* Text */}
-              <div className="flex flex-col gap-0.5 min-w-0">
-                <span
-                  className="text-xs font-bold text-gray-800 leading-tight"
+              <div style={{ minWidth: 0 }}>
+                <div
                   style={{
                     fontFamily: "'Poppins', sans-serif",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    color: "#222",
                     overflow: "hidden",
                     display: "-webkit-box",
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: "vertical",
+                    lineHeight: 1.3,
                   }}
                 >
                   {card.label}
-                </span>
-                <span
-                  className="text-[10px] text-gray-400 leading-tight"
-                  style={{ fontFamily: "'Poppins', sans-serif" }}
+                </div>
+                <div
+                  style={{
+                    fontFamily: "'Poppins', sans-serif",
+                    fontSize: "10px",
+                    color: "#999",
+                    marginTop: "2px",
+                  }}
                 >
                   {card.sublabel}
-                </span>
+                </div>
               </div>
             </motion.button>
           ))}
         </div>
       </div>
 
-      {/* ── KaamMitra Premium Banner ─────────────────────────────────────── */}
+      {/* ── KaamMitra Premium Banner ───────────────────────────────────── */}
       <motion.button
         data-ocid="home.go_premium_button"
         initial={{ opacity: 0, y: 14 }}
@@ -354,90 +513,135 @@ export function Home() {
           padding: "13px 16px",
           border: "none",
           cursor: "pointer",
-          boxShadow: "0 4px 12px rgba(124, 58, 237, 0.25)",
+          boxShadow: "0 4px 12px rgba(124,58,237,0.25)",
         }}
       >
-        <span className="text-2xl">👑</span>
-        <div className="flex-1">
+        <span style={{ fontSize: "22px" }}>👑</span>
+        <div style={{ flex: 1 }}>
           <div
-            className="text-sm font-bold"
-            style={{ fontFamily: "'Poppins', sans-serif" }}
+            style={{
+              fontFamily: "'Poppins', sans-serif",
+              fontSize: "14px",
+              fontWeight: 700,
+            }}
           >
             KaamMitra Premium
           </div>
-          <div className="text-xs opacity-85">
+          <div style={{ fontSize: "11px", opacity: 0.85 }}>
             Priority listing + unlimited jobs – ₹299/mo
           </div>
         </div>
-        <span className="text-sm font-bold opacity-70">›</span>
+        <span style={{ fontSize: "14px", fontWeight: 700, opacity: 0.7 }}>
+          ›
+        </span>
       </motion.button>
 
-      {/* ── Job Categories — Full Vertical Lists ─────────────────────────── */}
+      {/* ── Job Categories — chip/tag style ─────────────────────────────── */}
       <div className="mb-8">
-        <h2
-          className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4"
-          style={{ fontFamily: "'Poppins', sans-serif" }}
+        <div
+          className="section-title"
+          style={{
+            padding: "10px 0",
+            fontWeight: "bold",
+            color: "#666",
+            fontSize: "14px",
+            fontFamily: "'Poppins', sans-serif",
+            letterSpacing: "0.04em",
+          }}
         >
-          Job Categories
-        </h2>
-        <div className="flex flex-col gap-4">
-          {MAIN_CATEGORIES.map((group, i) => (
-            <motion.div
-              key={group.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 + i * 0.05, duration: 0.35 }}
-              style={{
-                background: "#ffffff",
-                borderRadius: "14px",
-                padding: "14px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                border: "1px solid #f0f0f0",
-              }}
-            >
-              {/* Group Header */}
-              <div className="flex items-center gap-1.5 mb-3">
-                <span className="text-xl">{group.emoji}</span>
-                <span
-                  className={`font-bold text-sm ${group.textColor}`}
-                  style={{ fontFamily: "'Poppins', sans-serif" }}
+          JOB CATEGORIES
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {MAIN_CATEGORIES.map((group, i) => {
+            const s = getCatStyle(group.id);
+            return (
+              <motion.div
+                key={group.id}
+                className="category-card"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.38 + i * 0.05, duration: 0.32 }}
+                style={{
+                  margin: "10px 0",
+                  borderRadius: "12px",
+                  padding: "15px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                  outline: "1px solid rgba(0,0,0,0.04)",
+                  backgroundColor: s.cardBg,
+                  borderLeft: `5px solid ${s.borderColor}`,
+                }}
+              >
+                {/* Category Header */}
+                <div
+                  className="category-header"
+                  style={{
+                    fontWeight: "bold",
+                    marginBottom: "12px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    fontFamily: "'Poppins', sans-serif",
+                    fontSize: "13px",
+                    color: s.headerColor,
+                  }}
                 >
-                  {group.name}
-                </span>
-                <span className="ml-auto text-[10px] text-gray-400 font-medium">
-                  {group.subcategories.length} roles
-                </span>
-              </div>
-              {/* Full vertical list of all role items */}
-              <div className="flex flex-col gap-1.5">
-                {group.subcategories.map((sub) => (
-                  <button
-                    key={sub}
-                    type="button"
-                    data-ocid="home.category.button"
-                    onClick={() => navigate({ to: "/find-work" })}
-                    style={{
-                      background: "#f9f9f9",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "8px",
-                      padding: "8px 12px",
-                      cursor: "pointer",
-                      fontFamily: "'Poppins', sans-serif",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      textAlign: "left",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                    }}
+                  <span>
+                    {group.emoji} {group.name}
+                  </span>
+                  <span
+                    className="count"
+                    style={{ fontSize: "10px", color: "#888", fontWeight: 500 }}
                   >
-                    <span>{CATEGORY_EMOJIS[sub] || "👷"}</span>
-                    <span className={group.textColor}>{sub}</span>
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          ))}
+                    {group.subcategories.length} roles
+                  </span>
+                </div>
+
+                {/* Chips Container */}
+                <div
+                  className="chips-container"
+                  style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}
+                  data-ocid={`${group.id}.list`}
+                >
+                  {group.subcategories.map((sub, idx) => (
+                    <button
+                      key={sub}
+                      type="button"
+                      className="chip"
+                      data-ocid={
+                        idx < 9
+                          ? `${group.id}.item.${idx + 1}`
+                          : `${group.id}.item.9`
+                      }
+                      onClick={() => navigate({ to: "/find-work" })}
+                      style={{
+                        background: "white",
+                        padding: "6px 12px",
+                        borderRadius: "20px",
+                        fontSize: "12px",
+                        border: `1px solid ${s.chipBorder}`,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        cursor: "pointer",
+                        fontFamily: "'Poppins', sans-serif",
+                        fontWeight: 600,
+                        color: s.chipColor,
+                        whiteSpace: "nowrap",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                        transition: "box-shadow 0.15s ease",
+                      }}
+                    >
+                      <span style={{ fontSize: "13px", lineHeight: 1 }}>
+                        {CATEGORY_EMOJIS[sub] || "👷"}
+                      </span>
+                      {sub}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
 
@@ -455,6 +659,80 @@ export function Home() {
           </a>
         </p>
       </footer>
+
+      {/* ── Screenshot FAB ──────────────────────────────────────────────── */}
+      <motion.button
+        data-ocid="screenshot.button"
+        type="button"
+        onClick={handleScreenshot}
+        disabled={isCapturing}
+        aria-label="Screenshot lein"
+        initial={{ opacity: 0, scale: 0.7 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.6, type: "spring", stiffness: 260, damping: 20 }}
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.92 }}
+        style={{
+          position: "fixed",
+          bottom: "76px",
+          right: "16px",
+          zIndex: 999,
+          width: "52px",
+          height: "52px",
+          borderRadius: "50%",
+          background: isCapturing
+            ? "#ccc"
+            : "linear-gradient(135deg, #FF6F00, #E65100)",
+          color: "white",
+          border: "none",
+          cursor: isCapturing ? "wait" : "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 4px 16px rgba(230,81,0,0.45)",
+          transition: "background 0.2s",
+        }}
+      >
+        {isCapturing ? (
+          <span style={{ fontSize: "20px" }}>⏳</span>
+        ) : (
+          <Camera size={22} strokeWidth={2} />
+        )}
+      </motion.button>
+
+      {/* ── Screenshot Success Toast ─────────────────────────────────── */}
+      <AnimatePresence>
+        {showSuccess && (
+          <motion.div
+            data-ocid="screenshot.success_state"
+            initial={{ opacity: 0, y: 20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 300, damping: 24 }}
+            style={{
+              position: "fixed",
+              bottom: "138px",
+              right: "12px",
+              zIndex: 1000,
+              background: "#1b5e20",
+              color: "white",
+              borderRadius: "12px",
+              padding: "10px 16px",
+              fontSize: "13px",
+              fontWeight: 700,
+              fontFamily: "'Poppins', sans-serif",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              maxWidth: "220px",
+            }}
+          >
+            <span style={{ fontSize: "16px" }}>✅</span>
+            Screenshot save ho gaya!
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
