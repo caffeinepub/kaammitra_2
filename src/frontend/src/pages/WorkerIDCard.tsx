@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Download, IdCard, Image } from "lucide-react";
+import { ArrowLeft, Camera, Download, IdCard, Image } from "lucide-react";
+import { useRef, useState } from "react";
 import { BlueBadge } from "../components/BlueBadge";
 import {
   CATEGORY_EMOJIS,
@@ -26,6 +27,14 @@ export function WorkerIDCard() {
   const state = myProfile?.state || "";
   const profilePhotoBase64 = myProfile?.profilePhotoBase64 || "";
 
+  // Photo state — prefer localStorage upload, then profile photo
+  const [photoBase64, setPhotoBase64] = useState<string>(
+    () =>
+      localStorage.getItem("workerProfilePhoto") || profilePhotoBase64 || "",
+  );
+  const [photoSaved, setPhotoSaved] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const catInitial =
     category.replace(/\s+/g, "").slice(0, 2).toUpperCase() || "KM";
   const mobileDigits = mobile.slice(-5).padStart(5, "0");
@@ -43,31 +52,87 @@ export function WorkerIDCard() {
   const profileUrl = `${window.location.origin}/scan-worker?mobile=${mobile}`;
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(profileUrl)}&bgcolor=ffffff&color=1a5e20`;
 
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new window.Image();
+      img.onload = () => {
+        // Resize to max 200x200
+        const MAX = 200;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          const ratio = Math.min(MAX / width, MAX / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, width, height);
+        const base64 = canvas.toDataURL("image/jpeg", 0.85);
+        localStorage.setItem("workerProfilePhoto", base64);
+        setPhotoBase64(base64);
+        setPhotoSaved(true);
+        setTimeout(() => setPhotoSaved(false), 2000);
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+    // Reset input so same file can be picked again
+    e.target.value = "";
+  }
+
   function handlePrint() {
     window.print();
   }
 
   function downloadCard() {
-    const el = document.getElementById("worker-id-card-container");
-    if (!el) return;
+    const el = document.getElementById("my-id-card");
+    if (!el) {
+      alert("Error: Card element nahi mila.");
+      return;
+    }
+
     // biome-ignore lint/suspicious/noExplicitAny: html2canvas loaded from CDN
     (window as any)
       .html2canvas(el, {
         scale: 3,
         useCORS: true,
-        logging: false,
+        allowTaint: true,
         backgroundColor: "#ffffff",
+        onclone: (_clonedDoc: Document, clonedEl: HTMLElement) => {
+          const allEls = clonedEl.querySelectorAll<HTMLElement>("*");
+          for (const elem of Array.from(allEls)) {
+            const computed = window.getComputedStyle(elem);
+            if (
+              computed.color.includes("oklch") ||
+              computed.backgroundColor.includes("oklch")
+            ) {
+              elem.style.color = "#000000";
+              elem.style.backgroundColor = "#ffffff";
+            }
+          }
+        },
       })
       .then((canvas: HTMLCanvasElement) => {
+        const imageData = canvas.toDataURL("image/png");
         const link = document.createElement("a");
-        link.href = canvas.toDataURL("image/png");
+        link.href = imageData;
         link.download = "KaamMitra-ID-Card.png";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
       })
-      .catch(() => {
-        alert("Download nahi ho paya, kripya dubara koshish karein.");
+      .catch((err: Error) => {
+        console.error(err);
+        alert(
+          "Color support error! Ek bar text colors ko simple RGB ya HEX mein karke dekhein.",
+        );
       });
   }
 
@@ -115,6 +180,56 @@ export function WorkerIDCard() {
         <h1 className="text-xl font-display font-black">My ID Card</h1>
       </div>
 
+      {/* ── Photo Upload ─────────────────────────────────────────────── */}
+      <div className="mb-4 print:hidden">
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handlePhotoChange}
+          data-ocid="idcard.upload_button"
+        />
+
+        <button
+          type="button"
+          data-ocid="idcard.photo_button"
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            width: "100%",
+            background: "#ff6a00",
+            color: "white",
+            border: "none",
+            borderRadius: "12px",
+            padding: "13px 20px",
+            fontSize: "15px",
+            fontWeight: 700,
+            fontFamily: "'Poppins', sans-serif",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+            boxShadow: "0 4px 14px rgba(255,106,0,0.35)",
+          }}
+        >
+          <Camera size={20} />
+          {photoBase64 ? "📷 Photo Change Karein" : "📷 Photo Add Karein"}
+        </button>
+
+        {/* Toast confirmation */}
+        {photoSaved && (
+          <p
+            className="text-center text-sm font-semibold mt-2"
+            style={{ color: "#16a34a" }}
+          >
+            ✓ Photo saved
+          </p>
+        )}
+      </div>
+
       {/* Paid verified promo or status */}
       {!paidVerified ? (
         <div className="mb-4 print:hidden bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between gap-3">
@@ -145,7 +260,7 @@ export function WorkerIDCard() {
       )}
 
       {/* ── ID Card (wrapped for html2canvas targeting) ─────────────── */}
-      <div id="worker-id-card-container" className="max-w-sm mx-auto">
+      <div id="my-id-card" className="max-w-sm mx-auto">
         <div
           id="worker-id-card"
           className="rounded-2xl overflow-hidden shadow-xl border bg-white"
@@ -177,10 +292,10 @@ export function WorkerIDCard() {
           {/* Body */}
           <div className="p-5">
             <div className="flex items-start gap-4 mb-4">
-              {/* Avatar */}
-              {profilePhotoBase64 ? (
+              {/* Avatar — uses uploaded/saved photo */}
+              {photoBase64 ? (
                 <img
-                  src={profilePhotoBase64}
+                  src={photoBase64}
                   alt="Profile"
                   className="w-16 h-16 rounded-full object-cover shrink-0 border-2"
                   style={{ borderColor: paidVerified ? "#93c5fd" : "#bbf7d0" }}
@@ -323,7 +438,7 @@ export function WorkerIDCard() {
           </div>
         </div>
       </div>
-      {/* end #worker-id-card-container */}
+      {/* end #my-id-card */}
 
       {/* ── Download buttons ──────────────────────────────────────────── */}
       <div className="mt-6 print:hidden flex flex-col gap-3">

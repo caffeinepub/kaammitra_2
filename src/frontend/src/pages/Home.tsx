@@ -3,9 +3,17 @@ import { useNavigate } from "@tanstack/react-router";
 import { Camera, Mic } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
+import { AssociatedCompanies } from "../components/AssociatedCompanies";
 import { useActor } from "../hooks/useActor";
+import { useGetAllJobs } from "../hooks/useQueries";
 import { useScreenshot } from "../hooks/useScreenshot";
-import { CATEGORY_EMOJIS, MAIN_CATEGORIES } from "../lib/constants";
+import {
+  CATEGORY_EMOJIS,
+  MAIN_CATEGORIES,
+  loadAllExtendedJobs,
+} from "../lib/constants";
+import { getPaymentReminders, markReminderRead } from "../lib/paymentData";
+import { LOCK_KEYS, getLockState } from "../utils/lockState";
 
 const ACTIONS = [
   {
@@ -125,6 +133,42 @@ const ACTION_CARDS = [
     iconBg: "#7B1FA2",
     contractorCheck: false,
   },
+  {
+    emoji: "🏢",
+    label: "Companies",
+    sublabel: "Register & Browse",
+    path: "/companies" as const,
+    ocid: "home.companies_button",
+    iconBg: "#1565C0",
+    contractorCheck: false,
+  },
+  {
+    emoji: "🎁",
+    label: "Invite & Earn",
+    sublabel: "Referral ₹10 reward",
+    path: "/invite-earn" as const,
+    ocid: "home.invite_earn_button",
+    iconBg: "#E91E63",
+    contractorCheck: false,
+  },
+  {
+    emoji: "📊",
+    label: "Work Report",
+    sublabel: "Payment hisaab",
+    path: "/work-payment-report" as const,
+    ocid: "home.work_report_button",
+    iconBg: "#1976D2",
+    contractorCheck: false,
+  },
+  {
+    emoji: "🎬",
+    label: "Video Profile",
+    sublabel: "Video banayein",
+    path: "/video-profile" as const,
+    ocid: "home.video_profile_button",
+    iconBg: "#7B1FA2",
+    contractorCheck: false,
+  },
 ];
 
 // Per-category accent — card bg, left border, chip colors, header text
@@ -187,11 +231,162 @@ function getCatStyle(id: string) {
   );
 }
 
+function TrendingJobsSection() {
+  const navigate = useNavigate();
+  const { data: backendJobs } = useGetAllJobs();
+  const extendedJobs = Object.values(loadAllExtendedJobs()).slice(0, 3);
+
+  // Merge backend jobs for display
+  const displayJobs =
+    extendedJobs.length > 0
+      ? extendedJobs
+      : (backendJobs || []).slice(0, 3).map((j) => ({
+          id: String(j.id),
+          title: j.description,
+          category: j.category,
+          location: j.location,
+          companyName: undefined,
+        }));
+
+  if (displayJobs.length === 0) return null;
+
+  return (
+    <div className="mb-5" data-ocid="home.trending_jobs">
+      <div
+        style={{
+          fontFamily: "'Poppins', sans-serif",
+          fontSize: "12px",
+          fontWeight: 700,
+          color: "#666",
+          textTransform: "uppercase" as const,
+          letterSpacing: "0.06em",
+          marginBottom: "10px",
+        }}
+      >
+        🔥 Trending Jobs
+      </div>
+      <div
+        style={{
+          display: "flex",
+          gap: "10px",
+          overflowX: "auto",
+          paddingBottom: "6px",
+        }}
+      >
+        {displayJobs.map((job, i) => (
+          <motion.div
+            key={job.id || i}
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: i * 0.05, duration: 0.3 }}
+            data-ocid={`home.trending_jobs.item.${i + 1}`}
+            style={{
+              minWidth: "160px",
+              background: "#fff",
+              border: "1px solid #FFE0B2",
+              borderRadius: "12px",
+              padding: "12px",
+              boxShadow: "0 2px 8px rgba(255,111,0,0.07)",
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "'Poppins', sans-serif",
+                fontWeight: 700,
+                fontSize: "12px",
+                color: "#1a1a1a",
+                marginBottom: "6px",
+                lineHeight: 1.3,
+              }}
+            >
+              {job.title}
+            </div>
+            <span
+              style={{
+                background: "#FFF3E0",
+                color: "#E65100",
+                fontSize: "10px",
+                fontWeight: 700,
+                padding: "2px 8px",
+                borderRadius: "10px",
+                fontFamily: "'Poppins', sans-serif",
+                display: "inline-block",
+                marginBottom: "6px",
+              }}
+            >
+              {job.category}
+            </span>
+            {"location" in job && job.location && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "3px",
+                  marginBottom: "4px",
+                }}
+              >
+                <span style={{ fontSize: "10px" }}>📍</span>
+                <span
+                  style={{
+                    fontFamily: "'Poppins', sans-serif",
+                    fontSize: "10px",
+                    color: "#888",
+                  }}
+                >
+                  {job.location as string}
+                </span>
+              </div>
+            )}
+            {"companyName" in job && job.companyName && (
+              <div
+                style={{
+                  fontFamily: "'Poppins', sans-serif",
+                  fontSize: "10px",
+                  color: "#888",
+                  marginBottom: "4px",
+                }}
+              >
+                🏢 {String(job.companyName)}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/find-work" })}
+              style={{
+                background: "#FF6F00",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "5px 10px",
+                fontFamily: "'Poppins', sans-serif",
+                fontWeight: 600,
+                fontSize: "11px",
+                cursor: "pointer",
+                width: "100%",
+                marginTop: "4px",
+              }}
+            >
+              Apply →
+            </button>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function Home() {
   const navigate = useNavigate();
   const { actor, isFetching } = useActor();
   const { downloadScreenshot, isCapturing } = useScreenshot();
   const [showSuccess, setShowSuccess] = useState(false);
+  const [reminders, setReminders] = useState(() =>
+    getPaymentReminders()
+      .filter((r) => !r.isRead)
+      .slice(0, 3),
+  );
+  const [showReminders, setShowReminders] = useState(false);
 
   const { data: appContent } = useQuery({
     queryKey: ["appContent"],
@@ -264,9 +459,25 @@ export function Home() {
             fontWeight: 900,
             fontFamily: "'Poppins', sans-serif",
             lineHeight: 1.1,
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
           }}
         >
           KaamMitra
+          {getLockState(LOCK_KEYS.LOGO_LOCKED) && (
+            <span
+              title="Logo Protected"
+              style={{
+                fontSize: "14px",
+                verticalAlign: "super",
+                lineHeight: 1,
+                opacity: 0.9,
+              }}
+            >
+              🔒
+            </span>
+          )}
         </h1>
         <p
           style={{
@@ -306,6 +517,108 @@ export function Home() {
           {announcement}
         </p>
       </motion.div>
+
+      {/* ── Payment Reminder Banner ─────────────────────────────────────── */}
+      {reminders.length > 0 && (
+        <div
+          data-ocid="home.payment_reminders_panel"
+          style={{
+            background: "#FFF3E0",
+            border: "1px solid #FFB74D",
+            borderRadius: "12px",
+            padding: "10px 14px",
+            marginBottom: "12px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: showReminders ? "8px" : 0,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "'Poppins'",
+                fontSize: "13px",
+                fontWeight: 700,
+                color: "#E65100",
+              }}
+            >
+              🔔 {reminders.length} Payment Pending
+            </span>
+            <button
+              type="button"
+              data-ocid="home.reminders.toggle"
+              onClick={() => setShowReminders((v) => !v)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#FF6F00",
+                fontWeight: 700,
+                cursor: "pointer",
+                fontSize: "12px",
+              }}
+            >
+              {showReminders ? "Hide" : "View"}
+            </button>
+          </div>
+          {showReminders &&
+            reminders.map((r) => (
+              <div
+                key={r.id}
+                style={{
+                  background: "white",
+                  borderRadius: "8px",
+                  padding: "8px 10px",
+                  marginBottom: "6px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <div>
+                  <span
+                    style={{
+                      fontFamily: "'Poppins'",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      color: "#333",
+                    }}
+                  >
+                    ₹{r.pendingAmount} pending for {r.workerName}
+                  </span>
+                  <div style={{ fontSize: "10px", color: "#999" }}>
+                    {r.workType}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  data-ocid="home.reminder.mark_read_button"
+                  onClick={() => {
+                    markReminderRead(r.id);
+                    setReminders(
+                      getPaymentReminders()
+                        .filter((x) => !x.isRead)
+                        .slice(0, 3),
+                    );
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#4CAF50",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    fontSize: "11px",
+                  }}
+                >
+                  Mark Read
+                </button>
+              </div>
+            ))}
+        </div>
+      )}
 
       {/* ── Quick Actions — 4-column grid ───────────────────────────────── */}
       <div
@@ -535,6 +848,50 @@ export function Home() {
           ›
         </span>
       </motion.button>
+
+      {/* ── GPS Nearby Jobs Banner ──────────────────────────────────── */}
+      <motion.button
+        onClick={() => navigate({ to: "/nearby-jobs" })}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.37, duration: 0.35 }}
+        whileTap={{ scale: 0.97 }}
+        className="w-full mb-4 text-white flex items-center gap-3 text-left"
+        style={{
+          background: "linear-gradient(135deg, #43a047, #00695c)",
+          borderRadius: "14px",
+          padding: "13px 16px",
+          border: "none",
+          cursor: "pointer",
+          boxShadow: "0 4px 12px rgba(67,160,71,0.25)",
+        }}
+        data-ocid="home.gps_nearby_jobs_button"
+      >
+        <span style={{ fontSize: "22px" }}>📍</span>
+        <div style={{ flex: 1 }}>
+          <div
+            style={{
+              fontFamily: "'Poppins'",
+              fontSize: "14px",
+              fontWeight: 700,
+            }}
+          >
+            GPS Nearby Jobs
+          </div>
+          <div style={{ fontSize: "11px", opacity: 0.85 }}>
+            Aas-paas ke jobs turant dekhein
+          </div>
+        </div>
+        <span style={{ fontSize: "14px", fontWeight: 700, opacity: 0.7 }}>
+          ›
+        </span>
+      </motion.button>
+
+      {/* ── Associated Companies ──────────────────────────────────────── */}
+      <AssociatedCompanies />
+
+      {/* ── Trending Jobs ──────────────────────────────────────────── */}
+      <TrendingJobsSection />
 
       {/* ── Job Categories — chip/tag style ─────────────────────────────── */}
       <div className="mb-8">

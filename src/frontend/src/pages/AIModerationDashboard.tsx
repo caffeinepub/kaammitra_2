@@ -1297,7 +1297,7 @@ export default function AIModerationDashboard() {
     <div data-ocid="ai_mod.page" className="min-h-screen bg-background pb-8">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-primary text-primary-foreground shadow-md">
-        <div className="max-w-[520px] mx-auto px-4 h-14 flex items-center gap-3">
+        <div className="w-full px-3 h-14 flex items-center gap-3">
           <button
             type="button"
             data-ocid="ai_mod.back_button"
@@ -1316,7 +1316,7 @@ export default function AIModerationDashboard() {
         </div>
       </header>
 
-      <div className="max-w-[520px] mx-auto px-4 pt-4 space-y-4">
+      <div className="w-full px-3 pt-4 space-y-4">
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3">
           <Card

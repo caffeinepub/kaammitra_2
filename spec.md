@@ -1,35 +1,36 @@
-# KaamMitra — Gender Inclusive & Female Worker Safety
+# KaamMitra — Job Apply System
 
 ## Current State
-- Gender selection (Male/Female/Other) already exists in CreateProfile.tsx
-- Gender badge shown on worker profile cards
-- Gender filter (All/Male/Female) exists in FindWorker.tsx
-- Verified badge shown for document-verified workers
-- No Report/Block feature exists for safety
-- No female-specific safety features exist
+- `CompanyDetails.tsx` page exists with basic job listings and a simple inline ApplyModal (no persistence).
+- `AssociatedCompanies.tsx` and `Companies.tsx` company cards have NO click/tap action — they are static.
+- No route exists for `/company/:companyId`.
+- `constants.ts` has a `JobApplication` interface for contractor jobs, but NO system for company-based job applications.
+- No worker dashboard for tracking applied company jobs.
+- No company dashboard for viewing and managing applicants.
 
 ## Requested Changes (Diff)
 
 ### Add
-- **Report/Block button** in the worker detail sheet (FindWorker.tsx) — opens a dialog to report or block a worker. Saves blocked workers to `kaam_mitra_blocked_workers` in localStorage. Blocked workers are filtered out of search results.
-- **Female Worker Safety Banner** — shown only when a female worker is selected in the detail sheet. Small info card: "🛡️ Verified female workers are protected. Phone numbers are shared only after both parties confirm."
-- **Safety Tips Card** on CreateProfile.tsx for female workers — shown after gender is selected as Female. Informs: OTP verification required, profile reviewed by admin before activation.
-- **Inclusive category display** — ensure all categories in CreateProfile show for all genders. Add a note on the category selection step: "All categories open to all genders — KaamMitra supports every worker equally."
-- **Profile completeness indicator** in worker detail sheet — show which safety/verification steps are complete (Mobile Verified, Email Verified, ID Verified, Payment Verified) as checklist chips.
-- **Report count** stored per worker mobile in localStorage `kaam_mitra_reports`.
+- `lib/companyJobs.ts` — job listings per company + `CompanyJobApplication` interface/CRUD (collection: `kaam_mitra_company_applications`). Fields: id, workerId, workerName, workerMobile, workerCategory, companyId, companyName, jobId, jobTitle, salary, appliedAt, status (pending/selected/rejected).
+- Route `/company/:companyId` in `App.tsx` pointing to `CompanyDetails`.
+- `pages/WorkerAppliedJobs.tsx` — worker dashboard listing their company job applications with live status badges, company name, job title, applied date. Accessible from Profile/Settings menu.
+- Route `/my-applications` in `App.tsx`.
+- Smart job matching section in `CompanyDetails.tsx`: shows "Recommended for You" based on worker's registered category.
+- Smart worker matching section in company dashboard (ContractorDashboard): shows best-fit workers per open job.
 
 ### Modify
-- FindWorker.tsx worker detail sheet: add Report/Block action button (⚠️ Report / Block), Safety banner for female workers, and verification checklist
-- CreateProfile.tsx: add female safety tips card after gender selection, add inclusive note on category step
+- `AssociatedCompanies.tsx` — make each card `cursor-pointer` with `onClick` navigating to `/company/:id`.
+- `Companies.tsx` — make each card fully tappable (entire card is clickable) navigating to `/company/:id`; keep Contact + View Jobs buttons but add card-level tap.
+- `CompanyDetails.tsx` — replace inline ApplyModal with persistent apply system: save `CompanyJobApplication` to localStorage, block duplicate applications, require mobile number (logged-in check via `getMyExtendedProfile`), send in-app notification on apply. Add worker's applied-jobs status if already applied (show badge instead of button).
+- `ContractorDashboard.tsx` — add "Job Applicants" tab showing all applications for this company's jobs with Approve/Reject buttons that update status and send notification to worker.
 
 ### Remove
-Nothing removed.
+- Nothing removed.
 
 ## Implementation Plan
-1. FindWorker.tsx: add `blockedWorkers` state loaded from localStorage, filter out blocked workers from results
-2. Add Report/Block sheet/dialog triggered from worker detail — select reason (Harassment, Fake Profile, Spam, Other), submit stores report to `kaam_mitra_reports` and optionally blocks the worker
-3. Add female safety info banner inside worker detail sheet when `selectedWorker.ext?.gender === 'Female'`
-4. Add verification checklist chips in worker detail sheet
-5. CreateProfile.tsx: add safety tips card shown when `form.gender === 'Female'`
-6. CreateProfile.tsx: add inclusive note text near category selection
-7. All new interactive elements get proper data-ocid markers
+1. Create `src/frontend/src/lib/companyJobs.ts` with: job listings data per company, `CompanyJobApplication` type, CRUD helpers (`applyToCompanyJob`, `loadCompanyApplications`, `getApplicationsForCompany`, `getApplicationsForWorker`, `updateApplicationStatus`).
+2. Update `CompanyDetails.tsx`: wire apply button to persistent system, show "Already Applied" badge, add recommended jobs section based on worker category match.
+3. Add click handlers to `AssociatedCompanies.tsx` and `Companies.tsx` company cards.
+4. Create `WorkerAppliedJobs.tsx` page.
+5. Update `ContractorDashboard.tsx` to add applicants tab.
+6. Register new routes in `App.tsx`.

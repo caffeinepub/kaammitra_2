@@ -474,6 +474,7 @@ export interface WorkerExtended {
   bikeServices?: string[];
   autoRC?: string;
   autoServices?: string[];
+  currentCompany?: string;
 }
 
 export const EXTENDED_PROFILE_KEY = "kaam_mitra_extended_profiles";
@@ -546,6 +547,7 @@ export interface ExtendedJob {
   salaryType: "daily" | "monthly";
   workDuration: string;
   contactNumber: string;
+  companyName?: string;
 }
 
 export function saveExtendedJob(jobId: string, data: ExtendedJob): void {
@@ -1333,7 +1335,8 @@ export function loadAllContractJobs(): ContractJob[] {
 export type PremiumPlanType =
   | "worker_basic"
   | "worker_priority"
-  | "contractor_premium";
+  | "contractor_premium"
+  | "pro_monthly";
 
 export interface PremiumRecord {
   id: string;

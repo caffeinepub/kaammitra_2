@@ -1910,7 +1910,7 @@ export function FemaleHub() {
     <div className="min-h-screen bg-background pb-16">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-lg">
-        <div className="max-w-[520px] mx-auto px-4 h-14 flex items-center gap-3">
+        <div className="w-full px-3 h-14 flex items-center gap-3">
           <button
             type="button"
             onClick={() => navigate({ to: "/" })}
@@ -1934,7 +1934,7 @@ export function FemaleHub() {
         </div>
       </header>
 
-      <main className="max-w-[520px] mx-auto px-4 pt-3 space-y-3">
+      <main className="w-full px-3 pt-3 space-y-3">
         {/* Notification banners */}
         <AnimatePresence>
           {!workerBannerDismissed && (

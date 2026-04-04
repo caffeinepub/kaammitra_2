@@ -31,6 +31,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useActor } from "../hooks/useActor";
 import { useCreateJobApproved } from "../hooks/useQueries";
+import { getCompanyNames } from "../lib/companies";
 import {
   CATEGORY_EMOJIS,
   MAIN_CATEGORIES,
@@ -55,6 +56,7 @@ export function PostJob() {
     phone: "",
     description: "",
     postedBy: "",
+    companyName: "",
   });
   const [step, setStep] = useState<Step>("form");
   const [payMethod, setPayMethod] = useState<PaymentMethod>("upi");
@@ -142,6 +144,7 @@ export function PostJob() {
           salaryType: form.salaryType,
           workDuration: form.workDuration,
           contactNumber: form.phone,
+          companyName: form.companyName || undefined,
         });
         setSavedJob({ id: jobIdStr, category: job.category });
         setStep("success");
@@ -169,6 +172,7 @@ export function PostJob() {
       phone: "",
       description: "",
       postedBy: "",
+      companyName: "",
     });
     setUpiId("");
     setCardNum("");
@@ -754,6 +758,27 @@ export function PostJob() {
             rows={4}
             className="resize-none text-base"
           />
+        </div>
+
+        {/* Company Name */}
+        <div className="space-y-1.5">
+          <Label htmlFor="companyName">Company Name</Label>
+          <select
+            id="companyName"
+            data-ocid="post_job.company_name_select"
+            value={form.companyName}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, companyName: e.target.value }))
+            }
+            className="h-12 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="">-- Select Company (Optional) --</option>
+            {getCompanyNames().map((cn) => (
+              <option key={cn} value={cn}>
+                {cn}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Your Name */}

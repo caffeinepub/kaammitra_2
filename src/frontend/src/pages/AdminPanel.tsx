@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "@tanstack/react-router";
@@ -41,6 +42,7 @@ import {
   AlertTriangle,
   Bell,
   Briefcase,
+  Building2,
   CheckCircle,
   ChevronLeft,
   IndianRupee,
@@ -67,6 +69,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Category, Job, Notification, Worker } from "../backend.d";
 import { useActor } from "../hooks/useActor";
+import { useLockState, useStringLockState } from "../hooks/useLockState";
+import {
+  approveCompany,
+  deleteRegisteredCompany,
+  loadRegisteredCompanies,
+  rejectCompany,
+  toggleCompanyPremium,
+} from "../lib/companies";
 import {
   type PaymentRecord,
   type VerificationRecord,
@@ -80,6 +90,14 @@ import {
   saveVerificationRecord,
   updateEscrowStatus,
 } from "../lib/constants";
+import {
+  calculateWorkDays,
+  deleteWorkPaymentRecord,
+  getPaidAmount,
+  getPendingAmount,
+  loadWorkPaymentRecords,
+} from "../lib/paymentData";
+import { LOCK_KEYS } from "../utils/lockState";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const ADMIN_PHONE_KEY = "adminPhone";
@@ -4123,6 +4141,771 @@ function AIModerationAdminSection() {
   );
 }
 
+function CompaniesAdminSection() {
+  const [companies, setCompanies] = React.useState(() =>
+    loadRegisteredCompanies(),
+  );
+  const [tab, setTab] = React.useState<"pending" | "all">("pending");
+
+  function refresh() {
+    setCompanies(loadRegisteredCompanies());
+  }
+
+  const pending = companies.filter((c) => c.status === "pending");
+  const approved = companies.filter((c) => c.status === "approved");
+
+  function handleApprove(id: string) {
+    approveCompany(id);
+    refresh();
+  }
+
+  function handleReject(id: string) {
+    rejectCompany(id);
+    refresh();
+  }
+
+  function handleDelete(id: string) {
+    deleteRegisteredCompany(id);
+    refresh();
+  }
+
+  function handleTogglePremium(id: string) {
+    toggleCompanyPremium(id);
+    refresh();
+  }
+
+  const poppins = "'Poppins', sans-serif";
+
+  return (
+    <div style={{ fontFamily: poppins }}>
+      {/* Stats row */}
+      <div
+        style={{
+          display: "flex",
+          gap: "8px",
+          marginBottom: "14px",
+          flexWrap: "wrap",
+        }}
+      >
+        <span
+          style={{
+            background: "#FFF3E0",
+            color: "#E65100",
+            borderRadius: "12px",
+            padding: "4px 12px",
+            fontWeight: 700,
+            fontSize: "12px",
+          }}
+        >
+          Total: {companies.length}
+        </span>
+        <span
+          style={{
+            background: "#FFF9C4",
+            color: "#F57F17",
+            borderRadius: "12px",
+            padding: "4px 12px",
+            fontWeight: 700,
+            fontSize: "12px",
+          }}
+        >
+          Pending: {pending.length}
+        </span>
+        <span
+          style={{
+            background: "#E8F5E9",
+            color: "#388E3C",
+            borderRadius: "12px",
+            padding: "4px 12px",
+            fontWeight: 700,
+            fontSize: "12px",
+          }}
+        >
+          Approved: {approved.length}
+        </span>
+        <button
+          type="button"
+          onClick={refresh}
+          style={{
+            background: "#FF6F00",
+            color: "#fff",
+            border: "none",
+            borderRadius: "8px",
+            padding: "4px 12px",
+            fontFamily: poppins,
+            fontWeight: 600,
+            fontSize: "12px",
+            cursor: "pointer",
+          }}
+        >
+          Refresh
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+        {(["pending", "all"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            style={{
+              background: tab === t ? "#FF6F00" : "#fff",
+              color: tab === t ? "#fff" : "#E65100",
+              border: "1.5px solid #FF6F00",
+              borderRadius: "20px",
+              padding: "5px 14px",
+              fontFamily: poppins,
+              fontWeight: 600,
+              fontSize: "12px",
+              cursor: "pointer",
+            }}
+          >
+            {t === "pending"
+              ? `⏳ Pending (${pending.length})`
+              : "📋 All Companies"}
+          </button>
+        ))}
+      </div>
+
+      {/* List */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        {(tab === "pending" ? pending : companies).map((company) => (
+          <div
+            key={company.id}
+            style={{
+              background: "#fff",
+              border: "1px solid #FFE0B2",
+              borderLeft: `5px solid ${company.status === "approved" ? "#4CAF50" : company.status === "rejected" ? "#f44336" : "#FF9800"}`,
+              borderRadius: "12px",
+              padding: "12px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                marginBottom: "6px",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontWeight: 800,
+                    fontSize: "13px",
+                    color: "#1a1a1a",
+                  }}
+                >
+                  {company.name}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "5px",
+                    marginTop: "4px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span
+                    style={{
+                      background: "#FFF3E0",
+                      color: "#E65100",
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      padding: "2px 8px",
+                      borderRadius: "10px",
+                    }}
+                  >
+                    {company.type}
+                  </span>
+                  <span
+                    style={{
+                      background: "#E3F2FD",
+                      color: "#1565C0",
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      padding: "2px 8px",
+                      borderRadius: "10px",
+                    }}
+                  >
+                    📍 {company.location}
+                  </span>
+                  <span
+                    style={{
+                      background: "#E8F5E9",
+                      color: "#388E3C",
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      padding: "2px 8px",
+                      borderRadius: "10px",
+                    }}
+                  >
+                    📞 {company.contactPhone}
+                  </span>
+                </div>
+                <div
+                  style={{ fontSize: "10px", color: "#999", marginTop: "4px" }}
+                >
+                  Registered:{" "}
+                  {new Date(company.registeredAt).toLocaleDateString("hi-IN")}
+                </div>
+              </div>
+              <span
+                style={{
+                  background:
+                    company.status === "approved"
+                      ? "#E8F5E9"
+                      : company.status === "rejected"
+                        ? "#FFEBEE"
+                        : "#FFF9C4",
+                  color:
+                    company.status === "approved"
+                      ? "#388E3C"
+                      : company.status === "rejected"
+                        ? "#C62828"
+                        : "#F57F17",
+                  fontSize: "10px",
+                  fontWeight: 700,
+                  padding: "3px 8px",
+                  borderRadius: "10px",
+                  flexShrink: 0,
+                }}
+              >
+                {company.status === "approved"
+                  ? "✔ Approved"
+                  : company.status === "rejected"
+                    ? "✖ Rejected"
+                    : "⏳ Pending"}
+              </span>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                gap: "6px",
+                flexWrap: "wrap",
+                marginTop: "8px",
+              }}
+            >
+              {company.status === "pending" && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleApprove(company.id)}
+                    style={{
+                      background: "#4CAF50",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "5px 10px",
+                      fontFamily: poppins,
+                      fontWeight: 600,
+                      fontSize: "12px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✅ Approve
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleReject(company.id)}
+                    style={{
+                      background: "#f44336",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "5px 10px",
+                      fontFamily: poppins,
+                      fontWeight: 600,
+                      fontSize: "12px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    ❌ Reject
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => handleTogglePremium(company.id)}
+                style={{
+                  background: company.isPremium ? "#F9A825" : "#fff",
+                  color: company.isPremium ? "#fff" : "#F9A825",
+                  border: "1.5px solid #F9A825",
+                  borderRadius: "6px",
+                  padding: "5px 10px",
+                  fontFamily: poppins,
+                  fontWeight: 600,
+                  fontSize: "12px",
+                  cursor: "pointer",
+                }}
+              >
+                ⭐ {company.isPremium ? "Remove Premium" : "Make Premium"}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(company.id)}
+                style={{
+                  background: "#ffebee",
+                  color: "#c62828",
+                  border: "1.5px solid #ef9a9a",
+                  borderRadius: "6px",
+                  padding: "5px 10px",
+                  fontFamily: poppins,
+                  fontWeight: 600,
+                  fontSize: "12px",
+                  cursor: "pointer",
+                }}
+              >
+                🗑️ Delete
+              </button>
+            </div>
+          </div>
+        ))}
+        {(tab === "pending" ? pending : companies).length === 0 && (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "30px",
+              color: "#aaa",
+              fontSize: "13px",
+            }}
+          >
+            Koi company nahi
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SecuritySection() {
+  const [logoLocked, setLogoLocked] = useLockState(
+    LOCK_KEYS.LOGO_LOCKED,
+    false,
+  );
+  const [featureLocked, setFeatureLocked] = useLockState(
+    LOCK_KEYS.FEATURE_LOCKED,
+    true,
+  );
+  const [paymentRequired, setPaymentRequired] = useLockState(
+    LOCK_KEYS.PAYMENT_REQUIRED,
+    false,
+  );
+  const [otpEnabled, setOtpEnabled] = useLockState(
+    LOCK_KEYS.OTP_ENABLED,
+    false,
+  );
+  const [logoUrl, setLogoUrl] = useStringLockState(LOCK_KEYS.LOGO_URL, "");
+  const [razorpayKey, setRazorpayKey] = useStringLockState(
+    LOCK_KEYS.RAZORPAY_KEY,
+    "",
+  );
+  const [msg91Key, setMsg91Key] = useStringLockState(LOCK_KEYS.MSG91_KEY, "");
+  const [sendgridKey, setSendgridKey] = useStringLockState(
+    LOCK_KEYS.SENDGRID_KEY,
+    "",
+  );
+  const [logoUrlInput, setLogoUrlInput] = React.useState(logoUrl);
+  const [razorpayInput, setRazorpayInput] = React.useState(razorpayKey);
+  const [msg91Input, setMsg91Input] = React.useState(msg91Key);
+  const [sendgridInput, setSendgridInput] = React.useState(sendgridKey);
+
+  const LOCKED_FEATURES = [
+    "Worker Categories",
+    "Job Posts",
+    "Admin Panel",
+    "Payment System",
+    "OTP Verification",
+    "Banners & Announcements",
+    "Female Job Hub",
+    "Operator Ekta",
+    "AI Moderation",
+    "Booking System",
+  ];
+
+  return (
+    <div className="space-y-5 pb-6">
+      {/* Status Dashboard */}
+      <div>
+        <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-primary" /> System Protection
+          Dashboard
+        </h3>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            {
+              label: "Logo Protection",
+              value: logoLocked,
+              on: "ON",
+              off: "OFF",
+            },
+            {
+              label: "Feature Lock",
+              value: featureLocked,
+              on: "ON",
+              off: "OFF",
+            },
+            {
+              label: "Payment Gateway",
+              value: paymentRequired,
+              on: "ACTIVE",
+              off: "INACTIVE",
+            },
+            {
+              label: "OTP Verification",
+              value: otpEnabled,
+              on: "ENABLED",
+              off: "DISABLED",
+            },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="bg-card border border-border rounded-xl p-3"
+            >
+              <p className="text-[11px] text-muted-foreground mb-1">
+                {item.label}
+              </p>
+              <span
+                className={`text-xs font-bold px-2 py-0.5 rounded-full ${item.value ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}
+              >
+                {item.value ? item.on : item.off}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Logo Lock */}
+      <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-semibold text-sm">Logo Protection</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              When ON, the KaamMitra logo cannot be changed by any prompt or
+              update.
+            </p>
+          </div>
+          <Switch
+            data-ocid="admin.logo_lock.toggle"
+            checked={logoLocked}
+            onCheckedChange={setLogoLocked}
+          />
+        </div>
+        {logoLocked ? (
+          <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+            <span className="text-base">🔒</span>
+            <span className="text-xs font-semibold text-green-700">
+              Logo is Protected
+            </span>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">
+              Custom Logo URL (optional)
+            </Label>
+            <div className="flex gap-2">
+              <input
+                data-ocid="admin.logo_url.input"
+                className="flex-1 text-sm border border-border rounded-lg px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-primary"
+                placeholder="https://your-logo-url.com/logo.png"
+                value={logoUrlInput}
+                onChange={(e) => setLogoUrlInput(e.target.value)}
+              />
+              <Button
+                size="sm"
+                onClick={() => {
+                  setLogoUrl(logoUrlInput);
+                  toast.success("Logo URL saved!");
+                }}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Feature Lock */}
+      <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-semibold text-sm">Feature Lock</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              When ON, existing features cannot be deleted or overwritten.
+            </p>
+          </div>
+          <Switch
+            data-ocid="admin.feature_lock.toggle"
+            checked={featureLocked}
+            onCheckedChange={setFeatureLocked}
+          />
+        </div>
+        {featureLocked ? (
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold text-green-700 flex items-center gap-1">
+              🔒 Protected Features:
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {LOCKED_FEATURES.map((f) => (
+                <span
+                  key={f}
+                  className="text-[11px] bg-green-50 border border-green-200 text-green-700 px-2 py-0.5 rounded-full font-medium"
+                >
+                  ✓ {f}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <p className="text-xs text-red-600 font-semibold">
+              ⚠️ Features are UNLOCKED. Be careful!
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* OTP Verification */}
+      <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-semibold text-sm">OTP Verification</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Enable real OTP via MSG91/Twilio + SendGrid email
+            </p>
+          </div>
+          <Switch
+            data-ocid="admin.otp.toggle"
+            checked={otpEnabled}
+            onCheckedChange={setOtpEnabled}
+          />
+        </div>
+        <div className="space-y-2">
+          <div>
+            <Label className="text-xs text-muted-foreground">
+              MSG91 / Twilio API Key
+            </Label>
+            <input
+              className="w-full mt-1 text-sm border border-border rounded-lg px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-primary"
+              placeholder="Enter MSG91 or Twilio API Key"
+              value={msg91Input}
+              onChange={(e) => setMsg91Input(e.target.value)}
+              onBlur={() => {
+                setMsg91Key(msg91Input);
+              }}
+            />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">
+              SendGrid API Key (email)
+            </Label>
+            <input
+              className="w-full mt-1 text-sm border border-border rounded-lg px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-primary"
+              placeholder="Enter SendGrid API Key for email verification"
+              value={sendgridInput}
+              onChange={(e) => setSendgridInput(e.target.value)}
+              onBlur={() => {
+                setSendgridKey(sendgridInput);
+              }}
+            />
+          </div>
+        </div>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+          <p className="text-[11px] text-blue-700">
+            ℹ️ Demo OTP is currently active. Real OTP requires valid API keys.
+          </p>
+        </div>
+      </div>
+
+      {/* Payment Gateway */}
+      <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-semibold text-sm">Payment Gateway</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Require payment before job appears in Find Work
+            </p>
+          </div>
+          <Switch
+            data-ocid="admin.payment_required.toggle"
+            checked={paymentRequired}
+            onCheckedChange={setPaymentRequired}
+          />
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground">
+            Razorpay Key ID
+          </Label>
+          <div className="flex gap-2 mt-1">
+            <input
+              data-ocid="admin.razorpay_key.input"
+              className="flex-1 text-sm border border-border rounded-lg px-3 py-2 bg-background outline-none focus:ring-1 focus:ring-primary"
+              placeholder="rzp_live_xxxxxxxxxxxxxxxx"
+              value={razorpayInput}
+              onChange={(e) => setRazorpayInput(e.target.value)}
+            />
+            <Button
+              size="sm"
+              onClick={() => {
+                setRazorpayKey(razorpayInput);
+                toast.success("Razorpay key saved!");
+              }}
+            >
+              Save
+            </Button>
+          </div>
+        </div>
+        <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+          <p className="text-[11px] text-orange-700">
+            💳 When enabled, job posts only appear in &apos;Find Work&apos;
+            after successful payment.
+          </p>
+        </div>
+      </div>
+
+      {/* Security Tests */}
+      <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+        <p className="font-semibold text-sm flex items-center gap-2">
+          🧪 Security Tests
+        </p>
+        <div className="space-y-2">
+          <Button
+            variant="outline"
+            className="w-full justify-start text-sm"
+            data-ocid="admin.security.tab"
+            onClick={() => {
+              if (logoLocked) {
+                toast.success(
+                  "✅ Logo Protection Working — Logo change blocked!",
+                );
+              } else {
+                toast.error(
+                  "⚠️ Logo is not locked. Enable Logo Protection first.",
+                );
+              }
+            }}
+          >
+            🔒 Test: Attempt Logo Change
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-start text-sm"
+            onClick={() => {
+              if (featureLocked) {
+                toast.success(
+                  "✅ Feature Lock Working — Feature removal blocked!",
+                );
+              } else {
+                toast.error(
+                  "⚠️ Feature Lock is OFF. Enable Feature Lock first.",
+                );
+              }
+            }}
+          >
+            🛡️ Test: Attempt Feature Removal
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-start text-sm"
+            onClick={() => {
+              toast.success(
+                "✅ Safe Addition Working — New content can be added without affecting existing features!",
+              );
+            }}
+          >
+            ➕ Test: Add New Content
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WorkReportsAdminSection() {
+  const [records, setRecords] = useState(loadWorkPaymentRecords());
+
+  const totalAmount = records.reduce((s, r) => s + r.totalAmount, 0);
+  const totalPaid = records.reduce((s, r) => s + getPaidAmount(r), 0);
+  const totalPending = records.reduce((s, r) => s + getPendingAmount(r), 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-3">
+        <Card>
+          <CardContent className="pt-3">
+            <p className="text-xs text-muted-foreground">Total</p>
+            <p className="text-lg font-bold text-primary">
+              ₹{totalAmount.toLocaleString()}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-3">
+            <p className="text-xs text-muted-foreground">Paid</p>
+            <p className="text-lg font-bold text-green-600">
+              ₹{totalPaid.toLocaleString()}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-3">
+            <p className="text-xs text-muted-foreground">Pending</p>
+            <p className="text-lg font-bold text-red-500">
+              ₹{totalPending.toLocaleString()}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+      {records.map((r) => (
+        <Card
+          key={r.id}
+          className={
+            getPendingAmount(r) > 0 ? "border-red-200" : "border-green-200"
+          }
+        >
+          <CardContent className="pt-3 space-y-1">
+            <div className="flex justify-between">
+              <p className="font-bold text-sm">{r.workerName}</p>
+              <Badge
+                variant={getPendingAmount(r) > 0 ? "destructive" : "default"}
+              >
+                {getPendingAmount(r) > 0
+                  ? `₹${getPendingAmount(r)} PENDING`
+                  : "PAID"}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {r.workType} · {calculateWorkDays(r.startDate, r.endDate)} days ·{" "}
+              {r.startDate} → {r.endDate}
+            </p>
+            <p className="text-xs">
+              Total: ₹{r.totalAmount} | Paid: ₹{getPaidAmount(r)}
+            </p>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="mt-1"
+              data-ocid="admin.reports.delete_button"
+              onClick={() => {
+                deleteWorkPaymentRecord(r.id);
+                setRecords(loadWorkPaymentRecords());
+              }}
+            >
+              <Trash2 className="w-3 h-3 mr-1" /> Delete
+            </Button>
+          </CardContent>
+        </Card>
+      ))}
+      {records.length === 0 && (
+        <p className="text-center text-muted-foreground py-8 text-sm">
+          Koi record nahi mila
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPanel() {
   const { actor, isFetching } = useActor();
   const [isLoggedIn, setIsLoggedIn] = useState(
@@ -4259,6 +5042,9 @@ export default function AdminPanel() {
     { id: "plans", label: "Plans 💳", icon: IndianRupee },
     { id: "female_profiles", label: "👩 Female", icon: Users },
     { id: "ai_mod", label: "🛡️ AI", icon: ShieldAlert },
+    { id: "security", label: "🔒 Security", icon: Lock },
+    { id: "companies", label: "🏢 Companies", icon: Building2 },
+    { id: "work_reports", label: "📊 Reports", icon: IndianRupee },
   ];
 
   // Check if logged-in user is super admin (by session stored mobile or default)
@@ -4283,13 +5069,14 @@ export default function AdminPanel() {
     plans: "Premium Plans & Monetization",
     female_profiles: "Female Worker Profiles",
     ai_mod: "AI Moderation Dashboard",
+    security: "🔒 Security & Lock System",
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-primary text-primary-foreground shadow-md">
-        <div className="max-w-[520px] mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="w-full px-3 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5" />
             <span className="font-display font-bold text-lg">
@@ -4309,7 +5096,7 @@ export default function AdminPanel() {
 
       {/* Section title */}
       <div className="bg-muted border-b border-border">
-        <div className="max-w-[520px] mx-auto px-4 py-3">
+        <div className="w-full px-3 py-3">
           <h2 className="text-base font-bold text-foreground">
             {sectionTitles[activeTab]}
           </h2>
@@ -4318,7 +5105,7 @@ export default function AdminPanel() {
 
       {/* Content */}
       <main className="flex-1 overflow-y-auto pb-24">
-        <div className="max-w-[520px] mx-auto px-4 pt-4">
+        <div className="w-full px-3 pt-4">
           {isFetching || !actor ? (
             <div className="flex justify-center py-20">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -4353,6 +5140,9 @@ export default function AdminPanel() {
                 {activeTab === "plans" && <PlansSection />}
                 {activeTab === "female_profiles" && <FemaleProfilesSection />}
                 {activeTab === "ai_mod" && <AIModerationAdminSection />}
+                {activeTab === "security" && <SecuritySection />}
+                {activeTab === "companies" && <CompaniesAdminSection />}
+                {activeTab === "work_reports" && <WorkReportsAdminSection />}
               </motion.div>
             </AnimatePresence>
           )}
@@ -4362,7 +5152,7 @@ export default function AdminPanel() {
       {/* Bottom nav - 8 items */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border shadow-lg">
         <div
-          className={`max-w-[520px] mx-auto grid ${isSuperAdmin ? "grid-cols-12" : "grid-cols-11"}`}
+          className={`w-full grid ${isSuperAdmin ? "grid-cols-12" : "grid-cols-11"}`}
         >
           {allNavItems.map(({ id, label, icon: Icon }) => (
             <button

@@ -83,7 +83,7 @@ export function OperatorPoster() {
         className="sticky top-0 z-40 shadow-lg"
         style={{ background: "oklch(0.45 0.15 145)" }}
       >
-        <div className="max-w-[520px] mx-auto flex items-center gap-3 px-4 py-3 text-white">
+        <div className="w-full flex items-center gap-3 px-3 py-3 text-white">
           <button
             type="button"
             data-ocid="poster.back_button"
@@ -120,7 +120,7 @@ export function OperatorPoster() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45 }}
-        className="max-w-[500px] mx-auto px-4 pt-6"
+        className="w-full px-3 pt-6"
       >
         <div className="rounded-2xl overflow-hidden shadow-xl border border-green-200">
           <img

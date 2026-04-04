@@ -64,7 +64,7 @@ export function MinWage() {
     <div className="min-h-screen bg-background">
       {/* Hero Header */}
       <div className="bg-gradient-to-br from-[oklch(0.35_0.12_145)] to-[oklch(0.28_0.10_145)] text-white">
-        <div className="max-w-lg mx-auto px-4 pt-4 pb-8">
+        <div className="w-full px-3 pt-4 pb-8">
           <Button
             variant="ghost"
             size="sm"
@@ -96,7 +96,7 @@ export function MinWage() {
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 -mt-4 pb-10 space-y-4">
+      <div className="w-full px-3 -mt-4 pb-10 space-y-4">
         {/* Intro Card */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}

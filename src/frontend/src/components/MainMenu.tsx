@@ -34,10 +34,12 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { getMyExtendedProfile } from "../lib/constants";
+import { isOwnerSessionActive } from "../utils/ownerAuth";
 
 interface MainMenuProps {
   open: boolean;
   onClose: () => void;
+  onOwnerLoginRequest?: () => void;
 }
 
 const FAQ_ITEMS = [
@@ -59,7 +61,11 @@ const FAQ_ITEMS = [
   },
 ];
 
-export function MainMenu({ open, onClose }: MainMenuProps) {
+export function MainMenu({
+  open,
+  onClose,
+  onOwnerLoginRequest,
+}: MainMenuProps) {
   const navigate = useNavigate();
   const myProfile = getMyExtendedProfile();
   const isAdmin = !!localStorage.getItem("kaam_mitra_admin_session");
@@ -738,6 +744,60 @@ export function MainMenu({ open, onClose }: MainMenuProps) {
                   </div>
                 </AccordionContent>
               </AccordionItem>
+            )}
+
+            {/* 🔐 Hidden Owner Panel — only visible to authenticated owner */}
+            {isOwnerSessionActive() && (
+              <AccordionItem
+                value="owner_panel"
+                data-ocid="main_menu.owner_panel.panel"
+                className="rounded-xl border border-red-900/40 overflow-hidden"
+              >
+                <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-red-950/30 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <span className="w-8 h-8 rounded-lg bg-red-950 flex items-center justify-center shrink-0">
+                      <Shield className="w-4 h-4 text-red-400" />
+                    </span>
+                    <span className="font-semibold text-sm text-red-400">
+                      🔐 Owner Panel
+                    </span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-3">
+                  <div className="space-y-2 pt-1">
+                    <div className="bg-red-950/30 border border-red-900/40 rounded-lg px-3 py-1.5 mb-2">
+                      <p className="text-xs text-red-400 font-medium">
+                        🛡️ Super Admin — Owner Only
+                      </p>
+                    </div>
+                    <MenuLink
+                      label="🛡️ Super Admin Dashboard"
+                      onClick={() => goTo("/super-admin")}
+                    />
+                    <MenuLink
+                      label="🤖 AI Moderation"
+                      onClick={() => goTo("/ai-moderation")}
+                    />
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
+
+            {/* Hidden trigger visible when owner NOT logged in — subtle menu item */}
+            {!isOwnerSessionActive() && onOwnerLoginRequest && (
+              <div className="px-1 pt-1">
+                <button
+                  type="button"
+                  data-ocid="main_menu.owner_login.button"
+                  onClick={() => {
+                    onClose();
+                    onOwnerLoginRequest();
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-lg text-xs text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors"
+                >
+                  . . .
+                </button>
+              </div>
             )}
           </Accordion>
         </ScrollArea>

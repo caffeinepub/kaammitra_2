@@ -39,6 +39,7 @@ import {
   loadJobApplications,
   saveJobApplication,
 } from "../lib/constants";
+import { LOCK_KEYS, getLockState } from "../utils/lockState";
 
 const SKELETON_IDS = ["sk1", "sk2", "sk3"];
 
@@ -181,6 +182,18 @@ export function FindWork() {
 
   return (
     <div className="page-container pt-4">
+      {getLockState(LOCK_KEYS.PAYMENT_REQUIRED) && (
+        <div
+          className="mb-4 flex items-start gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800"
+          data-ocid="findwork.payment_required.section"
+        >
+          <span className="text-base flex-shrink-0">💳</span>
+          <p>
+            <strong>Payment Required:</strong> Job posts appear after successful
+            payment. This ensures quality listings.
+          </p>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-display font-black">Find Work</h1>
         <Button
@@ -325,6 +338,11 @@ export function FindWork() {
                           <User className="w-3 h-3" />
                           {job.postedBy}
                         </span>
+                        {ext.companyName && (
+                          <span className="text-xs text-orange-700 font-semibold flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded-full">
+                            🏢 {ext.companyName}
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex gap-2">
@@ -430,7 +448,7 @@ export function FindWork() {
       >
         <DialogContent
           data-ocid="find_work.apply_dialog"
-          className="mx-4 rounded-2xl max-w-sm"
+          className="mx-3 rounded-2xl w-full"
         >
           <DialogHeader>
             <DialogTitle className="font-display font-black text-lg">

@@ -166,7 +166,7 @@ export function AutoRickshaw() {
     >
       {/* Header */}
       <div className="bg-gradient-to-r from-amber-500 to-yellow-600 text-white px-4 py-5">
-        <div className="max-w-[520px] mx-auto">
+        <div className="w-full">
           <div className="flex items-center gap-3 mb-4">
             <button
               type="button"
@@ -219,7 +219,7 @@ export function AutoRickshaw() {
         </div>
       </div>
 
-      <div className="max-w-[520px] mx-auto px-4 pt-4 space-y-4">
+      <div className="w-full px-3 pt-4 space-y-4">
         {/* Location Inputs */}
         <div className="bg-card border border-border rounded-2xl p-4 space-y-3 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-bold text-foreground">

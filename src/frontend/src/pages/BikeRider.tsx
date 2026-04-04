@@ -218,7 +218,7 @@ export function BikeRider() {
         </div>
       </div>
 
-      <div className="px-4 py-5 space-y-4 max-w-lg mx-auto">
+      <div className="px-3 py-5 space-y-4 w-full">
         {/* Booking form */}
         <Card className="border border-yellow-200">
           <CardContent className="p-4 space-y-3">

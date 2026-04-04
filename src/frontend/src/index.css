@@ -91,7 +91,7 @@
   }
 
   .page-container {
-    @apply max-w-[520px] mx-auto px-4 pb-24;
+    @apply w-full px-3 pb-24;
   }
 
   .section-title {

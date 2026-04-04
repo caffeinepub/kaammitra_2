@@ -1,11 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -18,7 +20,7 @@ import {
 } from "../lib/constants";
 
 interface Plan {
-  id: PremiumPlanType;
+  id: PremiumPlanType | "pro_monthly";
   badge: string;
   title: string;
   price: number;
@@ -45,6 +47,25 @@ const PLANS: Plan[] = [
     cta: "Get Verified – ₹49",
     color: "from-emerald-500 to-teal-600",
     borderColor: "border-emerald-200",
+  },
+  {
+    id: "pro_monthly",
+    badge: "🌟 PRO",
+    title: "KaamMitra PRO",
+    price: 199,
+    priceLabel: "₹199/month",
+    popular: "Best Value",
+    features: [
+      "Top job listing priority",
+      "Highlighted profile (orange glow)",
+      "✔ Verified badge",
+      "Unlimited job applications",
+      "Payment reminders",
+      "Company dashboard access",
+    ],
+    cta: "Go PRO – ₹199/mo",
+    color: "from-orange-500 to-red-500",
+    borderColor: "border-orange-300",
   },
   {
     id: "worker_priority",
@@ -87,6 +108,10 @@ export function PremiumPlans() {
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [upiId, setUpiId] = useState("");
   const [paying, setPaying] = useState(false);
+  const [payTab, setPayTab] = useState("upi");
+  const [cardNum, setCardNum] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
 
   const myMobile = (() => {
     try {
@@ -250,54 +275,146 @@ export function PremiumPlans() {
             </SheetTitle>
           </SheetHeader>
 
-          <div className="space-y-4 overflow-y-auto">
-            {/* UPI Input */}
-            <div>
-              <label
-                htmlFor="upi-id"
-                className="text-sm font-semibold text-foreground mb-1.5 block"
-              >
-                Your UPI ID
-              </label>
-              <input
-                type="text"
-                id="upi-id"
-                data-ocid="premium.upi.input"
-                value={upiId}
-                onChange={(e) => setUpiId(e.target.value)}
-                placeholder="Enter your UPI ID (e.g. name@upi)"
-                className="w-full rounded-xl border border-border px-3 py-2.5 text-sm bg-background focus:ring-2 focus:ring-primary outline-none"
-              />
-            </div>
+          <div className="overflow-y-auto max-h-[60vh]">
+            <Tabs value={payTab} onValueChange={setPayTab} className="w-full">
+              <TabsList className="w-full grid grid-cols-3 mb-4">
+                <TabsTrigger data-ocid="premium.upi.tab" value="upi">
+                  UPI
+                </TabsTrigger>
+                <TabsTrigger data-ocid="premium.card.tab" value="card">
+                  Debit Card
+                </TabsTrigger>
+                <TabsTrigger data-ocid="premium.phonepay.tab" value="phonepay">
+                  PhonePe/GPay
+                </TabsTrigger>
+              </TabsList>
 
-            {/* QR Placeholder */}
-            <div className="flex flex-col items-center justify-center rounded-2xl bg-muted border-2 border-dashed border-border py-8 gap-2">
-              <span className="text-4xl">📱</span>
-              <p className="font-semibold text-foreground text-sm">
-                Scan QR to Pay
-              </p>
-              <p className="text-xs text-muted-foreground">
-                UPI: kaammitra@upi
-              </p>
-              <p className="text-lg font-black text-foreground mt-1">
-                ₹{selectedPlan?.price}
-              </p>
-            </div>
+              <TabsContent value="upi" className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="upi-id"
+                    className="text-sm font-semibold text-foreground mb-1.5 block"
+                  >
+                    Your UPI ID
+                  </label>
+                  <Input
+                    type="text"
+                    id="upi-id"
+                    data-ocid="premium.upi.input"
+                    value={upiId}
+                    onChange={(e) => setUpiId(e.target.value)}
+                    placeholder="name@upi"
+                  />
+                </div>
+                <div className="flex flex-col items-center justify-center rounded-2xl bg-muted border-2 border-dashed border-border py-6 gap-2">
+                  <span className="text-4xl">📱</span>
+                  <p className="font-semibold text-foreground text-sm">
+                    Scan QR to Pay
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    UPI: kaammitra@upi
+                  </p>
+                  <p className="text-lg font-black text-foreground mt-1">
+                    ₹{selectedPlan?.price}
+                  </p>
+                </div>
+                <Button
+                  data-ocid="premium.upi.pay_button"
+                  onClick={handlePay}
+                  disabled={paying}
+                  className="w-full py-5 font-bold rounded-2xl bg-gradient-to-r from-orange-500 to-red-500 text-white border-0"
+                >
+                  {paying ? "Processing..." : `Pay ₹${selectedPlan?.price}`}
+                </Button>
+              </TabsContent>
 
-            <Button
-              data-ocid="premium.pay_button"
-              onClick={handlePay}
-              disabled={paying}
-              className="w-full py-6 text-base font-bold rounded-2xl bg-gradient-to-r from-violet-600 to-purple-700 text-white border-0"
-            >
-              {paying ? "Processing..." : "Pay via Razorpay"}
-            </Button>
+              <TabsContent value="card" className="space-y-3">
+                <Input
+                  data-ocid="premium.card.number.input"
+                  placeholder="Card Number"
+                  value={cardNum}
+                  onChange={(e) => setCardNum(e.target.value)}
+                  maxLength={19}
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    data-ocid="premium.card.expiry.input"
+                    placeholder="MM/YY"
+                    value={cardExpiry}
+                    onChange={(e) => setCardExpiry(e.target.value)}
+                  />
+                  <Input
+                    data-ocid="premium.card.cvv.input"
+                    placeholder="CVV"
+                    type="password"
+                    maxLength={3}
+                    value={cardCvv}
+                    onChange={(e) => setCardCvv(e.target.value)}
+                  />
+                </div>
+                <Button
+                  data-ocid="premium.card.pay_button"
+                  onClick={handlePay}
+                  disabled={paying}
+                  className="w-full py-5 font-bold rounded-2xl bg-gradient-to-r from-orange-500 to-red-500 text-white border-0"
+                >
+                  {paying ? "Processing..." : `Pay ₹${selectedPlan?.price}`}
+                </Button>
+              </TabsContent>
+
+              <TabsContent value="phonepay" className="space-y-4">
+                <div className="flex flex-col items-center justify-center rounded-2xl bg-muted border-2 border-dashed border-border py-8 gap-2">
+                  <span className="text-5xl">📲</span>
+                  <p className="font-semibold text-foreground text-sm">
+                    PhonePe / GPay se Pay Karein
+                  </p>
+                  <p className="text-lg font-black text-foreground">
+                    ₹{selectedPlan?.price}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    UPI ID: kaammitra@ybl
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    data-ocid="premium.phonepe_button"
+                    onClick={() => {
+                      window.open("phonepe://pay?pa=kaammitra@ybl");
+                      setTimeout(handlePay, 2000);
+                    }}
+                    className="font-bold rounded-2xl"
+                    style={{
+                      background: "#5F259F",
+                      color: "white",
+                      border: "none",
+                    }}
+                  >
+                    💜 PhonePe
+                  </Button>
+                  <Button
+                    data-ocid="premium.gpay_button"
+                    onClick={() => {
+                      window.open("tez://upi/pay?pa=kaammitra@ybl");
+                      setTimeout(handlePay, 2000);
+                    }}
+                    className="font-bold rounded-2xl"
+                    style={{
+                      background: "#1a73e8",
+                      color: "white",
+                      border: "none",
+                    }}
+                  >
+                    💙 GPay
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
 
             <Button
               variant="outline"
               data-ocid="premium.payment.cancel_button"
               onClick={() => setSelectedPlan(null)}
-              className="w-full rounded-2xl"
+              className="w-full rounded-2xl mt-3"
             >
               Cancel
             </Button>

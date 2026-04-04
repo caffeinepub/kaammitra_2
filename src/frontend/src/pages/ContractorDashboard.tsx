@@ -15,10 +15,22 @@ import {
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import {
+  type AppStatus,
+  type CompanyJobApplication,
+  getAllCompanyJobs,
+  getApplicationsForCompany,
+  updateApplicationStatus,
+} from "../lib/companyJobs";
+import {
+  type AppNotification,
   CATEGORY_EMOJIS,
   type JobApplication,
+  loadAllExtendedProfiles,
   loadApplicationsForContractor,
+  saveNotification,
 } from "../lib/constants";
+
+const POPPINS = "'Poppins', sans-serif";
 
 interface ContractorProfile {
   name: string;
@@ -59,11 +71,38 @@ function StatusBadge({ status }: { status: JobApplication["status"] }) {
   );
 }
 
+function CompanyAppStatusBadge({ status }: { status: AppStatus }) {
+  if (status === "selected")
+    return (
+      <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+        ✅ Selected
+      </span>
+    );
+  if (status === "rejected")
+    return (
+      <span className="text-xs font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+        ❌ Rejected
+      </span>
+    );
+  return (
+    <span className="text-xs font-bold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
+      ⏳ Pending
+    </span>
+  );
+}
+
+type ActiveTab = "applications" | "company_applicants";
+
 export function ContractorDashboard() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ContractorProfile | null>(null);
   const [postedJobsCount, setPostedJobsCount] = useState(0);
   const [applications, setApplications] = useState<JobApplication[]>([]);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("applications");
+  const [companyApps, setCompanyApps] = useState<CompanyJobApplication[]>([]);
+
+  // Demo company id for contractor — in production would be linked to contractor mobile
+  const DEMO_COMPANY_ID = "reg_ahluwalia";
 
   useEffect(() => {
     const raw = localStorage.getItem("contractorProfile");
@@ -91,13 +130,41 @@ export function ContractorDashboard() {
       /* ignore */
     }
 
-    // Load applications for this contractor
     setApplications(loadApplicationsForContractor(p.mobile));
+    setCompanyApps(getApplicationsForCompany(DEMO_COMPANY_ID));
   }, [navigate]);
 
   function handleLogout() {
     localStorage.removeItem("contractorProfile");
     navigate({ to: "/" });
+  }
+
+  function handleApprove(app: CompanyJobApplication) {
+    updateApplicationStatus(app.id, "selected");
+    const notif: AppNotification = {
+      id: `notif_${Date.now()}`,
+      title: "🎉 Select Ho Gaye!",
+      mobile: app.workerMobile,
+      body: `${app.companyName} ne aapko ${app.jobTitle} ke liye select kar liya!`,
+      createdAt: Date.now(),
+      read: false,
+    };
+    saveNotification(notif);
+    setCompanyApps(getApplicationsForCompany(DEMO_COMPANY_ID));
+  }
+
+  function handleReject(app: CompanyJobApplication) {
+    updateApplicationStatus(app.id, "rejected");
+    const notif: AppNotification = {
+      id: `notif_${Date.now()}`,
+      mobile: app.workerMobile,
+      title: "Application Update",
+      body: `${app.companyName} me ${app.jobTitle} ke liye aapki application reject ho gayi.`,
+      createdAt: Date.now(),
+      read: false,
+    };
+    saveNotification(notif);
+    setCompanyApps(getApplicationsForCompany(DEMO_COMPANY_ID));
   }
 
   if (!profile) return null;
@@ -117,6 +184,27 @@ export function ContractorDashboard() {
       year: "numeric",
     },
   );
+
+  // Smart match: find workers whose category matches most-posted job category
+  const allCompanyJobs = getAllCompanyJobs().filter(
+    (j) => j.companyId === DEMO_COMPANY_ID,
+  );
+  const categoryCount: Record<string, number> = {};
+  for (const j of allCompanyJobs) {
+    categoryCount[j.category] = (categoryCount[j.category] ?? 0) + 1;
+  }
+  const topCategory =
+    Object.entries(categoryCount).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+  // biome-ignore lint/suspicious/noExplicitAny: extended profiles have dynamic fields
+  const allProfiles: any[] = Object.values(loadAllExtendedProfiles());
+  const smartMatches: any[] = allProfiles
+    .filter(
+      (w: any) =>
+        w.category &&
+        topCategory &&
+        String(w.category).toLowerCase().includes(topCategory.toLowerCase()),
+    )
+    .slice(0, 3);
 
   return (
     <div className="page-container pb-24" data-ocid="contractor_dashboard.page">
@@ -180,7 +268,7 @@ export function ContractorDashboard() {
         <Card className="rounded-2xl border-border shadow-card">
           <CardContent className="p-4 text-center">
             <div className="text-3xl font-black font-display text-orange-500">
-              {applications.length}
+              {applications.length + companyApps.length}
             </div>
             <div className="text-xs text-muted-foreground font-body mt-1">
               Applications
@@ -196,7 +284,6 @@ export function ContractorDashboard() {
         transition={{ delay: 0.15 }}
         className="grid grid-cols-2 gap-3 mb-6"
       >
-        {/* Post Job */}
         <motion.button
           data-ocid="contractor_dashboard.post_job_button"
           whileTap={{ scale: 0.97 }}
@@ -216,7 +303,6 @@ export function ContractorDashboard() {
           </div>
         </motion.button>
 
-        {/* Find Worker */}
         <motion.button
           data-ocid="contractor_dashboard.find_worker_button"
           whileTap={{ scale: 0.97 }}
@@ -237,123 +323,469 @@ export function ContractorDashboard() {
         </motion.button>
       </motion.div>
 
-      {/* Job Applications Section */}
+      {/* Tab Selector */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        data-ocid="contractor_dashboard.applications_section"
-        className="mb-6"
+        transition={{ delay: 0.18 }}
+        className="flex gap-2 mb-4"
       >
-        <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-          <Briefcase className="w-4 h-4" />
-          Job Applications
+        <button
+          type="button"
+          data-ocid="contractor_dashboard.applications.tab"
+          onClick={() => setActiveTab("applications")}
+          style={{
+            flex: 1,
+            fontFamily: POPPINS,
+            fontWeight: 700,
+            fontSize: "13px",
+            padding: "9px",
+            borderRadius: "12px",
+            border:
+              activeTab === "applications" ? "none" : "1.5px solid #E65100",
+            background:
+              activeTab === "applications"
+                ? "linear-gradient(90deg,#FF6F00,#e53935)"
+                : "#fff",
+            color: activeTab === "applications" ? "#fff" : "#E65100",
+            cursor: "pointer",
+          }}
+        >
+          📊 Job Applications
           {applications.length > 0 && (
-            <span className="bg-orange-500 text-white text-xs font-black px-2 py-0.5 rounded-full">
+            <span
+              style={{
+                marginLeft: "6px",
+                background:
+                  activeTab === "applications"
+                    ? "rgba(255,255,255,0.3)"
+                    : "#FF6F00",
+                color: "#fff",
+                borderRadius: "20px",
+                padding: "1px 7px",
+                fontSize: "11px",
+              }}
+            >
               {applications.length}
             </span>
           )}
-        </h2>
-
-        {applications.length === 0 ? (
-          <Card className="rounded-2xl border-border shadow-card">
-            <CardContent
-              data-ocid="contractor_dashboard.applications_section.empty_state"
-              className="p-8 text-center"
+        </button>
+        <button
+          type="button"
+          data-ocid="contractor_dashboard.company_applicants.tab"
+          onClick={() => setActiveTab("company_applicants")}
+          style={{
+            flex: 1,
+            fontFamily: POPPINS,
+            fontWeight: 700,
+            fontSize: "13px",
+            padding: "9px",
+            borderRadius: "12px",
+            border:
+              activeTab === "company_applicants"
+                ? "none"
+                : "1.5px solid #E65100",
+            background:
+              activeTab === "company_applicants"
+                ? "linear-gradient(90deg,#FF6F00,#e53935)"
+                : "#fff",
+            color: activeTab === "company_applicants" ? "#fff" : "#E65100",
+            cursor: "pointer",
+          }}
+        >
+          🏢 Job Applicants
+          {companyApps.length > 0 && (
+            <span
+              style={{
+                marginLeft: "6px",
+                background:
+                  activeTab === "company_applicants"
+                    ? "rgba(255,255,255,0.3)"
+                    : "#FF6F00",
+                color: "#fff",
+                borderRadius: "20px",
+                padding: "1px 7px",
+                fontSize: "11px",
+              }}
             >
-              <div className="text-3xl mb-2">📥</div>
-              <p className="text-sm font-semibold text-muted-foreground">
-                Abhi koi application nahi aayi
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Jab worker apply karega, yahan dikhega
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {applications.map((app, idx) => (
-              <Card
-                key={app.id}
-                data-ocid={`contractor_dashboard.application_item.${idx + 1}`}
-                className="rounded-2xl border-border shadow-card overflow-hidden"
+              {companyApps.length}
+            </span>
+          )}
+        </button>
+      </motion.div>
+
+      {/* Tab content */}
+      {activeTab === "applications" && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          data-ocid="contractor_dashboard.applications_section"
+          className="mb-6"
+        >
+          <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+            <Briefcase className="w-4 h-4" />
+            Job Applications
+            {applications.length > 0 && (
+              <span className="bg-orange-500 text-white text-xs font-black px-2 py-0.5 rounded-full">
+                {applications.length}
+              </span>
+            )}
+          </h2>
+
+          {applications.length === 0 ? (
+            <Card className="rounded-2xl border-border shadow-card">
+              <CardContent
+                data-ocid="contractor_dashboard.applications_section.empty_state"
+                className="p-8 text-center"
               >
-                <CardContent className="p-4">
-                  {/* Header */}
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white font-black text-sm shrink-0">
+                <div className="text-3xl mb-2">📥</div>
+                <p className="text-sm font-semibold text-muted-foreground">
+                  Abhi koi application nahi aayi
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Jab worker apply karega, yahan dikhega
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {applications.map((app, idx) => (
+                <Card
+                  key={app.id}
+                  data-ocid={`contractor_dashboard.application_item.${idx + 1}`}
+                  className="rounded-2xl border-border shadow-card overflow-hidden"
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white font-black text-sm shrink-0">
+                          {app.workerName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-display font-black text-foreground text-sm">
+                            {app.workerName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {timeAgo(app.appliedAt)}
+                          </p>
+                        </div>
+                      </div>
+                      <StatusBadge status={app.status} />
+                    </div>
+                    <div className="bg-indigo-50 rounded-lg px-3 py-1.5 mb-3">
+                      <p className="text-xs font-semibold text-indigo-700">
+                        📋 {app.jobTitle}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {app.workerCategory && (
+                        <Badge variant="secondary" className="text-xs">
+                          {CATEGORY_EMOJIS[app.workerCategory] || "👷"}{" "}
+                          {app.workerCategory}
+                        </Badge>
+                      )}
+                      {app.workerCity && (
+                        <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                          <MapPin className="w-3 h-3" /> {app.workerCity}
+                        </span>
+                      )}
+                    </div>
+                    {app.workerMobile && (
+                      <div className="flex gap-2">
+                        <a
+                          href={`tel:${app.workerMobile}`}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-3 py-2 rounded-full transition-colors"
+                        >
+                          <Phone className="w-3 h-3" /> 📞 Call
+                        </a>
+                        <a
+                          href={`https://wa.me/91${app.workerMobile.replace(/^0/, "")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 bg-[#25D366] hover:bg-[#20BD5C] text-white text-xs font-bold px-3 py-2 rounded-full transition-colors"
+                        >
+                          💬 WhatsApp
+                        </a>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {activeTab === "company_applicants" && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="mb-6"
+        >
+          {/* Smart Match section */}
+          {smartMatches.length > 0 && (
+            <div
+              style={{
+                background: "#E8F5E9",
+                border: "1px solid #A5D6A7",
+                borderRadius: "14px",
+                padding: "14px",
+                marginBottom: "14px",
+              }}
+            >
+              <p
+                style={{
+                  fontFamily: POPPINS,
+                  fontWeight: 800,
+                  fontSize: "13px",
+                  color: "#2E7D32",
+                  marginBottom: "10px",
+                }}
+              >
+                💡 Smart Match — Top Workers for "{topCategory}"
+              </p>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+              >
+                {smartMatches.map((w, i) => (
+                  <div
+                    key={w.mobile ?? i}
+                    style={{
+                      background: "#fff",
+                      borderRadius: "10px",
+                      padding: "10px 12px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "10px",
+                    }}
+                  >
+                    <div>
+                      <p
+                        style={{
+                          fontFamily: POPPINS,
+                          fontWeight: 700,
+                          fontSize: "13px",
+                          color: "#1a1a1a",
+                        }}
+                      >
+                        {String(w.name ?? "")}
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: POPPINS,
+                          fontSize: "11px",
+                          color: "#888",
+                        }}
+                      >
+                        {String(w.category ?? "")} • {String(w.city ?? "")}
+                      </p>
+                    </div>
+                    <a
+                      href={`https://wa.me/91${String(w.mobile ?? "")}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      data-ocid={`contractor_dashboard.smart_match_contact.${i + 1}`}
+                      style={{
+                        background: "#25D366",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "8px",
+                        padding: "5px 12px",
+                        fontFamily: POPPINS,
+                        fontWeight: 600,
+                        fontSize: "11px",
+                        cursor: "pointer",
+                        textDecoration: "none",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Contact
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+            🏢 Company Job Applicants
+            {companyApps.length > 0 && (
+              <span className="bg-orange-500 text-white text-xs font-black px-2 py-0.5 rounded-full">
+                {companyApps.length}
+              </span>
+            )}
+          </h2>
+
+          {companyApps.length === 0 ? (
+            <Card className="rounded-2xl border-border shadow-card">
+              <CardContent
+                data-ocid="contractor_dashboard.company_applicants.empty_state"
+                className="p-8 text-center"
+              >
+                <div className="text-3xl mb-2">🏢</div>
+                <p className="text-sm font-semibold text-muted-foreground">
+                  Koi applicant nahi abhi
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Jab workers company jobs ke liye apply karenge, yahan dikhega
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "12px" }}
+            >
+              {companyApps.map((app, idx) => (
+                <div
+                  key={app.id}
+                  data-ocid={`contractor_dashboard.company_applicant.${idx + 1}`}
+                  style={{
+                    background: "#fff",
+                    border: "1px solid #FFE0B2",
+                    borderRadius: "14px",
+                    padding: "14px",
+                    boxShadow: "0 2px 8px rgba(255,111,0,0.07)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: "8px",
+                      marginBottom: "10px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "40px",
+                          height: "40px",
+                          borderRadius: "10px",
+                          background: "linear-gradient(135deg,#FF6F00,#e53935)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#fff",
+                          fontWeight: 800,
+                          fontSize: "16px",
+                          flexShrink: 0,
+                        }}
+                      >
                         {app.workerName.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <p className="font-display font-black text-foreground text-sm">
+                        <p
+                          style={{
+                            fontFamily: POPPINS,
+                            fontWeight: 800,
+                            fontSize: "13px",
+                            color: "#1a1a1a",
+                          }}
+                        >
                           {app.workerName}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {timeAgo(app.appliedAt)}
+                        <p
+                          style={{
+                            fontFamily: POPPINS,
+                            fontSize: "11px",
+                            color: "#888",
+                          }}
+                        >
+                          {app.workerMobile} • {app.workerCategory}
                         </p>
                       </div>
                     </div>
-                    <StatusBadge status={app.status} />
+                    <CompanyAppStatusBadge status={app.status} />
                   </div>
 
-                  {/* Job Title */}
-                  <div className="bg-indigo-50 rounded-lg px-3 py-1.5 mb-3">
-                    <p className="text-xs font-semibold text-indigo-700">
-                      📋 {app.jobTitle}
+                  <div
+                    style={{
+                      background: "#FFF3E0",
+                      borderRadius: "8px",
+                      padding: "6px 10px",
+                      marginBottom: "10px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontFamily: POPPINS,
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        color: "#E65100",
+                      }}
+                    >
+                      📋 {app.jobTitle} • {app.salary}
+                    </p>
+                    <p
+                      style={{
+                        fontFamily: POPPINS,
+                        fontSize: "11px",
+                        color: "#888",
+                      }}
+                    >
+                      Applied:{" "}
+                      {new Date(app.appliedAt).toLocaleDateString("en-IN")}
                     </p>
                   </div>
 
-                  {/* Details */}
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    {app.workerCategory && (
-                      <Badge variant="secondary" className="text-xs">
-                        {CATEGORY_EMOJIS[app.workerCategory] || "👷"}{" "}
-                        {app.workerCategory}
-                      </Badge>
-                    )}
-                    {app.workerExperience && (
-                      <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium">
-                        📅 {app.workerExperience}
-                      </span>
-                    )}
-                    {app.workerCity && (
-                      <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                        <MapPin className="w-3 h-3" /> {app.workerCity}
-                      </span>
-                    )}
-                    {app.workerSalary && (
-                      <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                        ₹ {app.workerSalary}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Action buttons */}
-                  {app.workerMobile && (
-                    <div className="flex gap-2">
-                      <a
-                        href={`tel:${app.workerMobile}`}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-3 py-2 rounded-full transition-colors"
+                  {app.status === "pending" && (
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button
+                        type="button"
+                        data-ocid={`contractor_dashboard.approve_button.${idx + 1}`}
+                        onClick={() => handleApprove(app)}
+                        style={{
+                          flex: 1,
+                          background: "#4CAF50",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: "10px",
+                          padding: "9px",
+                          fontFamily: POPPINS,
+                          fontWeight: 700,
+                          fontSize: "12px",
+                          cursor: "pointer",
+                        }}
                       >
-                        <Phone className="w-3 h-3" /> 📞 Call
-                      </a>
-                      <a
-                        href={`https://wa.me/91${app.workerMobile.replace(/^0/, "")}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 bg-[#25D366] hover:bg-[#20BD5C] text-white text-xs font-bold px-3 py-2 rounded-full transition-colors"
+                        ✅ Select
+                      </button>
+                      <button
+                        type="button"
+                        data-ocid={`contractor_dashboard.reject_button.${idx + 1}`}
+                        onClick={() => handleReject(app)}
+                        style={{
+                          flex: 1,
+                          background: "#f44336",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: "10px",
+                          padding: "9px",
+                          fontFamily: POPPINS,
+                          fontWeight: 700,
+                          fontSize: "12px",
+                          cursor: "pointer",
+                        }}
                       >
-                        💬 WhatsApp
-                      </a>
+                        ❌ Reject
+                      </button>
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </motion.div>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      )}
 
       {/* Profile Details */}
       <motion.div

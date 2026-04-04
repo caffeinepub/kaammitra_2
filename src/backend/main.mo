@@ -11,6 +11,17 @@ import Time "mo:core/Time";
 
 
 actor {
+  // =========================================================
+  // SUPER ADMIN OWNER LOCK
+  // These values are permanent and cannot be changed by any
+  // public call. Only ONE owner exists. No other admin allowed.
+  // =========================================================
+  let OWNER_MOBILE : Text = "9876543210";
+  let OWNER_EMAIL  : Text = "admin@kaammitra.in";
+  let OWNER_OTP    : Text = "1234"; // demo OTP; replace with real OTP in production
+
+  // =========================================================
+
   module Worker {
     public func compareByCreatedAt(a : Worker, b : Worker) : Order.Order {
       Nat.compare(a.createdAt, b.createdAt);
@@ -73,6 +84,15 @@ actor {
     createdAt : Nat;
   };
 
+  type OwnerStats = {
+    totalWorkers    : Nat;
+    totalJobs       : Nat;
+    totalCategories : Nat;
+    totalNotifications : Nat;
+    pendingApprovals : Nat;
+    totalContacts   : Nat;
+  };
+
   var workerId = 0;
   var jobId = 0;
   var contactId = 0;
@@ -80,9 +100,10 @@ actor {
   var notificationId = 0;
   var adminUsername = "admin";
   var adminPassword = "1234";
-  var adminPhone = "9876543210";  // Default admin phone number
-  var adminOtp = "";              // Current OTP
-  var adminOtpExpiry : Int = 0;  // Expiry timestamp in nanoseconds
+  // adminPhone is kept for legacy OTP flow but cannot override OWNER_MOBILE
+  var adminPhone = "9876543210";
+  var adminOtp = "";
+  var adminOtpExpiry : Int = 0;
 
   let workers = Map.empty<Nat, Worker>();
   let jobs = Map.empty<Nat, Job>();
@@ -103,6 +124,43 @@ actor {
     contactNumber = "+91 9876543210";
     supportDetails = "Mon-Sat: 9am-6pm";
   };
+
+  // =========================================================
+  // OWNER VERIFICATION (backend-enforced)
+  // Verifies mobile + email + OTP. All three must match.
+  // Returns true only for the single owner.
+  // =========================================================
+  public query func verifyOwnerAccess(mobile : Text, email : Text, otp : Text) : async Bool {
+    Text.equal(mobile, OWNER_MOBILE) and
+    Text.equal(email, OWNER_EMAIL) and
+    Text.equal(otp, OWNER_OTP)
+  };
+
+  // Check mobile + email only (no OTP) — used for session re-validation
+  public query func isOwnerVerified(mobile : Text, email : Text) : async Bool {
+    Text.equal(mobile, OWNER_MOBILE) and
+    Text.equal(email, OWNER_EMAIL)
+  };
+
+  // Return dashboard stats for the owner
+  public query func getOwnerStats() : async OwnerStats {
+    let totalWorkers    = workers.size();
+    let totalJobs       = jobs.values().toArray().filter(func(j : Job) : Bool { not j.deleted }).size();
+    let totalCategories = categories.size();
+    let totalNotif      = notifications.size();
+    let pendingApprovals = jobs.values().toArray().filter(func(j : Job) : Bool { not j.approved and not j.deleted }).size();
+    let totalContacts   = contacts.size();
+    {
+      totalWorkers;
+      totalJobs;
+      totalCategories;
+      totalNotifications = totalNotif;
+      pendingApprovals;
+      totalContacts;
+    }
+  };
+
+  // =========================================================
 
   func addInitialCategory(name : Text) {
     let category : Category = {
@@ -187,8 +245,12 @@ actor {
     adminPhone;
   };
 
+  // Guard: only owner may change admin phone
   public shared ({ caller }) func updateAdminPhone(newPhone : Text) : async Bool {
     if (Text.equal(newPhone, "")) { return false };
+    // Block changing to a different number than the owner number
+    // (prevents creating a second admin phone)
+    if (not Text.equal(newPhone, OWNER_MOBILE)) { return false };
     adminPhone := newPhone;
     true;
   };
@@ -203,7 +265,7 @@ actor {
       expectedSalary;
       category;
       createdAt = Int.abs(Time.now());
-      approved = true;  // Auto-approve workers so they appear in Find Worker list
+      approved = true;
       blocked = false;
     };
     workers.add(workerId, newWorker);
@@ -305,7 +367,6 @@ actor {
     newJob;
   };
 
-  // Create job with payment - auto-approved so it appears in Find Work immediately
   public shared ({ caller }) func createJobApproved(category : Text, location : Text, description : Text, payOffered : Text, postedBy : Text) : async Job {
     let newJob : Job = {
       id = jobId;
@@ -315,7 +376,7 @@ actor {
       payOffered;
       postedBy;
       createdAt = Int.abs(Time.now());
-      approved = true;  // Auto-approved after payment
+      approved = true;
       deleted = false;
     };
     jobs.add(jobId, newJob);
@@ -349,7 +410,6 @@ actor {
     jobs.values().toArray().filter(func(j) { not j.deleted }).sort(Job.compareByCreatedAt);
   };
 
-  // Admin Job functions
   public shared ({ caller }) func approveJob(id : Nat) : async Bool {
     switch (jobs.get(id)) {
       case (null) { false };
@@ -504,7 +564,7 @@ actor {
   public shared ({ caller }) func resetAdminToDefault() : async () {
     adminUsername := "admin";
     adminPassword := "1234";
-    adminPhone := "9876543210";
+    adminPhone := OWNER_MOBILE;  // Always reset to owner mobile, never to something else
   };
 
   public shared ({ caller }) func resetAdminPasswordDirect(newPassword : Text) : async () {

@@ -27,8 +27,9 @@ import {
   PlusCircle,
   User,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { MainMenu } from "./components/MainMenu";
+import { OwnerLoginModal } from "./components/OwnerLoginModal";
 import {
   type AppNotification,
   getMyExtendedProfile,
@@ -43,6 +44,9 @@ import { AutoRickshaw } from "./pages/AutoRickshaw";
 import { BikeRider } from "./pages/BikeRider";
 import { BookingCalendar } from "./pages/BookingCalendar";
 import { BookingHistory } from "./pages/BookingHistory";
+import { Companies } from "./pages/Companies";
+import { CompanyDetails } from "./pages/CompanyDetails";
+import { CompanyRegister } from "./pages/CompanyRegister";
 import { Contact } from "./pages/Contact";
 import { ContractorDashboard } from "./pages/ContractorDashboard";
 import { ContractorRegister } from "./pages/ContractorRegister";
@@ -52,6 +56,7 @@ import { FemaleHub } from "./pages/FemaleHub";
 import { FindWork } from "./pages/FindWork";
 import { FindWorker } from "./pages/FindWorker";
 import { Home } from "./pages/Home";
+import { InviteEarn } from "./pages/InviteEarn";
 import { LongTermHiring } from "./pages/LongTermHiring";
 import { MinWage } from "./pages/MinWage";
 import MitraAI from "./pages/MitraAI";
@@ -64,13 +69,19 @@ import { PostJob } from "./pages/PostJob";
 import { PremiumPlans } from "./pages/PremiumPlans";
 import { ScanWorker } from "./pages/ScanWorker";
 import { Settings as SettingsPage } from "./pages/Settings";
+import { SplashScreen } from "./pages/SplashScreen";
+import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import { TransportServices } from "./pages/TransportServices";
 import { VerifyAndPay } from "./pages/VerifyAndPay";
+import { VideoProfile } from "./pages/VideoProfile";
 import VoiceSearch from "./pages/VoiceSearch";
+import { WorkPaymentReport } from "./pages/WorkPaymentReport";
+import { WorkerAppliedJobs } from "./pages/WorkerAppliedJobs";
 import { WorkerIDCard } from "./pages/WorkerIDCard";
 import { WorkerMap } from "./pages/WorkerMap";
 import { WorkerVerification } from "./pages/WorkerVerification";
 import { WorkerWallet } from "./pages/WorkerWallet";
+import { isOwnerSessionActive } from "./utils/ownerAuth";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -127,13 +138,15 @@ function LayoutWrapper() {
   const navigate = useNavigate();
   const currentPath = routerState.location.pathname;
   const isHome = currentPath === "/";
-  const isAdmin = currentPath === "/admin";
+  const isAdminPath = currentPath === "/admin";
+  const isSuperAdmin = currentPath === "/super-admin";
   const isPosterPage = currentPath === "/operator-poster";
   const isVoiceSearch = currentPath === "/voice-search";
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [ownerLoginOpen, setOwnerLoginOpen] = useState(false);
 
-  // Admin easter-egg tap logic (moved from Home.tsx)
+  // 5-tap owner login easter egg
   const tapCount = useRef(0);
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [tapFlash, setTapFlash] = useState(false);
@@ -149,7 +162,12 @@ function LayoutWrapper() {
     if (tapCount.current >= 5) {
       tapCount.current = 0;
       if (tapTimer.current) clearTimeout(tapTimer.current);
-      navigate({ to: "/admin" });
+      // If already authenticated as owner, go directly; otherwise show login
+      if (isOwnerSessionActive()) {
+        navigate({ to: "/super-admin" });
+      } else {
+        setOwnerLoginOpen(true);
+      }
     }
   }
 
@@ -198,7 +216,7 @@ function LayoutWrapper() {
 
   void navigate;
 
-  if (isAdmin || isPosterPage || isVoiceSearch) {
+  if (isAdminPath || isSuperAdmin || isPosterPage || isVoiceSearch) {
     return <Outlet />;
   }
 
@@ -218,7 +236,7 @@ function LayoutWrapper() {
           }}
         >
           <div
-            className="max-w-[520px] mx-auto"
+            className="w-full"
             style={{
               display: "grid",
               gridTemplateColumns: "44px 1fr 44px",
@@ -283,7 +301,7 @@ function LayoutWrapper() {
             }}
           >
             <div
-              className="max-w-[520px] mx-auto"
+              className="w-full"
               style={{
                 display: "flex",
                 flexDirection: "row",
@@ -317,8 +335,8 @@ function LayoutWrapper() {
                   🇮🇳 INDIA&apos;S OWN
                 </span>
 
-                {/* KaamMitra heading — admin easter egg */}
-                {/* biome-ignore lint/a11y/useKeyWithClickEvents: hidden admin trigger */}
+                {/* KaamMitra heading — owner easter egg (5 taps) */}
+                {/* biome-ignore lint/a11y/useKeyWithClickEvents: hidden owner trigger */}
                 <h1
                   onClick={handleTitleTap}
                   style={{
@@ -451,7 +469,7 @@ function LayoutWrapper() {
         data-ocid="nav.bottom_bar"
       >
         <div
-          className="max-w-[520px] mx-auto"
+          className="w-full"
           style={{ display: "flex", alignItems: "center", height: "58px" }}
         >
           {BOTTOM_NAV.map((item) => {
@@ -520,7 +538,20 @@ function LayoutWrapper() {
         </div>
       </nav>
 
-      <MainMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <MainMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onOwnerLoginRequest={() => {
+          setMenuOpen(false);
+          setOwnerLoginOpen(true);
+        }}
+      />
+
+      {/* Owner Login Modal */}
+      <OwnerLoginModal
+        open={ownerLoginOpen}
+        onClose={() => setOwnerLoginOpen(false)}
+      />
 
       {/* Notification Sheet */}
       <Sheet open={notifSheetOpen} onOpenChange={setNotifSheetOpen}>
@@ -631,6 +662,11 @@ const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/admin",
   component: AdminPanel,
+});
+const superAdminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/super-admin",
+  component: SuperAdminDashboard,
 });
 const contractorRegisterRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -773,6 +809,43 @@ const voiceSearchRoute = createRoute({
   component: VoiceSearch,
 });
 
+const companyRegisterRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/company-register",
+  component: CompanyRegister,
+});
+const companiesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/companies",
+  component: Companies,
+});
+const companyDetailsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/company/$companyId",
+  component: CompanyDetails,
+});
+const workerAppliedJobsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/my-applications",
+  component: WorkerAppliedJobs,
+});
+
+const inviteEarnRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/invite-earn",
+  component: InviteEarn,
+});
+const workPaymentReportRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/work-payment-report",
+  component: WorkPaymentReport,
+});
+const videoProfileRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/video-profile",
+  component: VideoProfile,
+});
+
 const routeTree = rootRoute.addChildren([
   homeRoute,
   findWorkRoute,
@@ -781,6 +854,7 @@ const routeTree = rootRoute.addChildren([
   createProfileRoute,
   contactRoute,
   adminRoute,
+  superAdminRoute,
   contractorRegisterRoute,
   contractorDashboardRoute,
   settingsRoute,
@@ -809,6 +883,13 @@ const routeTree = rootRoute.addChildren([
   aiModerationRoute,
   mitraAIRoute,
   voiceSearchRoute,
+  companyRegisterRoute,
+  companiesRoute,
+  inviteEarnRoute,
+  workPaymentReportRoute,
+  videoProfileRoute,
+  companyDetailsRoute,
+  workerAppliedJobsRoute,
 ]);
 
 const router = createRouter({ routeTree });
@@ -820,8 +901,11 @@ declare module "@tanstack/react-router" {
 }
 
 export default function App() {
+  const [splashDone, setSplashDone] = useState(false);
+
   return (
     <QueryClientProvider client={queryClient}>
+      {!splashDone && <SplashScreen onComplete={() => setSplashDone(true)} />}
       <RouterProvider router={router} />
     </QueryClientProvider>
   );
